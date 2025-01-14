@@ -52,7 +52,7 @@ pub async fn run_for_device<P: Peripheral>(device: &P) -> Result<(), Box<dyn Err
         notify_characteristic.uuid
     );
     device.subscribe(&notify_characteristic).await?;
-    const CMD: [u8; 3] = [0x30, 0, 0x30];
+    const CMD: [u8; 12] = [0x01, 0x09, 0x70, 0x32, 0xe2, 0xc1, 0x79, 0x9d, 0xb4, 0xd1, 0xc7, 0xb1];
 
     device
         .write(write_characteristic, &CMD, WriteType::WithoutResponse)
