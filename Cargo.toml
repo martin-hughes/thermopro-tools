@@ -1,4 +1,4 @@
 [workspace]
 resolver = "2"
 
-members = ["tlv-check"]
+members = ["tlv-check", "controller"]
