@@ -37,7 +37,10 @@ normal data flow is:
 The first byte of each response is always the same as the first byte of the preceding command, probably to make it
 easier to manage the state of the controlling app.
 
-An example data flow can be seen in [this example](./example.md)
+An example data flow can be seen in [this example](./examples/driven-by-app)
+
+> Having said this, the thermometer will send unsolicited notifications, see
+> [one of the basics tests](./examples/basic-tests.md#sending-a-0x01-command).
 
 ## Commands
 
@@ -45,33 +48,34 @@ All commands appear to be sent in [TLVC format](#tlvc-format).
 
 The following commands are *partially* understood:
 
-| Command | Example                  | Notes                          |
-|---------|--------------------------|--------------------------------|
-| 0x01    | 01097032e2c1799db4d1c7b1 | Some kind of setup instruction |
-| 0x30    | 300030                   | Send temperature data          |
+| Command | Example                    | Notes                                                                                            |
+|---------|----------------------------|--------------------------------------------------------------------------------------------------|
+| 0x01    | `01097032e2c1799db4d1c7b1` | Some kind of setup instruction. This must be sent or the device will not send 0x30 notifications |
+| 0x30    | `300030`                   | Send temperature data                                                                            |
 
 The following commands are not understood yet:
 
-| Command | Example            | Notes                                                               |
-|---------|--------------------|---------------------------------------------------------------------|
-| 0x26    | 260026             | Mode setting instruction? Has no data                               |
-| 0x23    | 23060100ffffffff26 | Appears 4 times in the trace. Set up probe details?                 |
-| 0x24    | 24010126           | Appears 6 times.                                                    |
-| 0x41    | 410041             | No data, so perhaps a mode setting command?                         |
-| 0x25    | 250025             | Another mode setting command? Gets back a temperature-like response |
+| Command | Example              | Notes                                                               |
+|---------|----------------------|---------------------------------------------------------------------|
+| 0x26    | `260026`             | Mode setting instruction? Has no data                               |
+| 0x23    | `23060100ffffffff26` | Appears 4 times in the trace. Set up probe details?                 |
+| 0x24    | `24010126`           | Appears 6 times.                                                    |
+| 0x41    | `410041`             | No data, so perhaps a mode setting command?                         |
+| 0x25    | `250025`             | Another mode setting command? Gets back a temperature-like response |
 
 ## Responses
 
-All responses appear to be 20 bytes long.
+All responses appear to be 20 bytes long. Apart
 
-| Command | Example                                  | Notes                                               |
-|---------|------------------------------------------|-----------------------------------------------------|
-| 0x01    | 01010a0ce2c1799db4d1c7b10020c1799db4d1c7 | Not understood, but interestingly repetitive.       |
-| 0x26    | 26050c0c5a030faf0000071a0020480000200200 | Not understood                                      |
-| 0x23    | 2302010026ffffff260000450200384c0200ffff | Not understood                                      |
-| 0x24    | 24060200ffffffff2800001a0020480000200200 | Not understood. Weird that it's sent 6 times        |
-| 0x25    | 250e0600ffffffffffff0223ffffffff54200200 | Possibly a different format of temperature response |
-| 0x30    | 300f5a0c00ffffffffffff0325ffffffffc30140 | Temperature data                                    |
+| Command | Example                                    | Notes                                               |
+|---------|--------------------------------------------|-----------------------------------------------------|
+| 0x01    | `01010a0ce2c1799db4d1c7b10020c1799db4d1c7` | Not understood, but interestingly repetitive.       |
+| 0x26    | `26050c0c5a030faf0000071a0020480000200200` | Not understood                                      |
+| 0x23    | `2302010026ffffff260000450200384c0200ffff` | Not understood                                      |
+| 0x24    | `24060200ffffffff2800001a0020480000200200` | Not understood. Weird that it's sent 6 times        |
+| 0x25    | `250e0600ffffffffffff0223ffffffff54200200` | Possibly a different format of temperature response |
+| 0x30    | `300f5a0c00ffffffffffff0325ffffffffc30140` | Temperature data                                    |
+| 0xe0    | `E00230041600917D0000E9190020480000200200` | Error?                                              |
 
 ### Temperature data format
 

@@ -29,3 +29,7 @@ I accept no liability if you get in trouble for reading further - you have been 
 # Documentation
 
 [Basic documentation](docs/index.md)
+
+# Acknowledgements
+
+This project builds upon several open source libraries as noted [here](docs/os-acknowledgements.md)

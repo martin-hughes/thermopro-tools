@@ -52,20 +52,22 @@ pub async fn run_for_device<P: Peripheral>(device: &P) -> Result<(), Box<dyn Err
         notify_characteristic.uuid
     );
     device.subscribe(&notify_characteristic).await?;
-    const CMD: [u8; 12] = [0x01, 0x09, 0x70, 0x32, 0xe2, 0xc1, 0x79, 0x9d, 0xb4, 0xd1, 0xc7, 0xb1];
+    const CMD: [u8; 12] = [
+        0x01, 0x09, 0x70, 0x32, 0xe2, 0xc1, 0x79, 0x9d, 0xb4, 0xd1, 0xc7, 0xb1,
+    ];
 
     device
         .write(write_characteristic, &CMD, WriteType::WithoutResponse)
         .await?;
 
     // Print the first 4 notifications received.
-    let mut notification_stream = device.notifications().await?.take(4);
+    let mut notification_stream = device.notifications().await?;
     // Process while the BLE connection is not broken or stopped.
     while let Some(data) = timeout(Duration::from_secs(4), notification_stream.next())
         .await
         .unwrap()
     {
-        println!("Received data from [{:?}]: {:?}", data.uuid, data.value);
+        println!("Received data from [{:?}]: {:02x?}", data.uuid, data.value);
     }
 
     println!("Disconnecting from peripheral...");

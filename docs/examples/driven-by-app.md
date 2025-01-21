@@ -1,4 +1,4 @@
-# TP25 example data flow
+# App-driven TP25 data flow
 
 The following was extracted from a packet capture of a TP25 being connected to the ThermoPro app, and then a single
 probe being gently warmed up.
