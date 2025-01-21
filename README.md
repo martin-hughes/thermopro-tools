@@ -2,7 +2,7 @@
 
 A selection of things I've found useful whilst trying to reverse-engineer a TP25.
 
-> For the full story, see my blog. (link TBD)
+> For the full story, [see my blog](https://martys.blog/posts/thermopro)
 
 For various reasons, I really want to be able to communicate with my
 [ThermoPro TP25 meat thermometer](https://buythermopro.com/product/tp25/) without needing to use the app. This repo
