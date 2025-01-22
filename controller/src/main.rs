@@ -1,17 +1,23 @@
+use futures::StreamExt;
 mod thermopro;
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use crate::thermopro::{has_required_characteristics, is_relevant_name, run_for_device};
-use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
+use crate::thermopro::{
+    communicator, get_write_characteristic, has_required_characteristics, is_relevant_name,
+    subscribe_to_notifications, TwoWayChannel,
+};
+use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use std::error::Error;
-use std::io::Write;
 use std::io;
+use std::io::Write;
 use std::time::Duration;
+use tokio::sync::mpsc::channel;
 use tokio::task::JoinSet;
 use tokio::time;
+use tokio::time::timeout;
 
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
@@ -90,7 +96,57 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let device = find_device(adapter_list).await;
-    run_for_device(device).await?;
+    //run_for_device(device).await?;
+
+    let mut notifications = subscribe_to_notifications(&device).await?.unwrap();
+    let device_writer = get_write_characteristic(&device).await?;
+
+    const CHANNEL_SIZE: usize = 10;
+    let (notification_tx, notification_rx) = channel(CHANNEL_SIZE);
+    let (write_tx, mut write_rx) = channel(CHANNEL_SIZE);
+
+    let to_communicator = TwoWayChannel {
+        receiver: notification_rx,
+        sender: write_tx,
+    };
+
+    let mut tasks = JoinSet::new();
+
+    // "Communicator" - receives byte stream from BLE and converts it to commands and vice versa
+    let _ = tasks.spawn(communicator(to_communicator));
+
+    // Bluetooth notifications to communicator
+    let _ = tasks.spawn(async move {
+        while let Some(data) = timeout(Duration::from_secs(4), notifications.next())
+            .await
+            .unwrap()
+        {
+            match notification_tx.send(data.value.into()).await {
+                Err(_) => return,
+                Ok(_) => {}
+            };
+        }
+    });
+
+    // Communicator to bluetooth peripheral
+    let _ = tasks.spawn(async move {
+        while let Some(data) = write_rx.recv().await {
+            println!("Write {:x}", data);
+            match device
+                .write(
+                    &device_writer,
+                    &data.iter().as_slice(),
+                    WriteType::WithoutResponse,
+                )
+                .await
+            {
+                Err(_) => return,
+                Ok(_) => {}
+            };
+        }
+    });
+
+    tasks.join_next().await;
 
     Ok(())
 }
