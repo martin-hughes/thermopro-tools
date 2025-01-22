@@ -1,4 +1,5 @@
-use btleplug::api::{CharPropFlags, Characteristic, Peripheral, WriteType};
+use btleplug::api::{CharPropFlags, Characteristic, Peripheral as _, WriteType};
+use btleplug::platform::Peripheral;
 use futures::stream::StreamExt;
 use std::error::Error;
 use std::time::Duration;
@@ -11,8 +12,30 @@ const THERMOPRO_NAME: &str = "Thermopro";
 const WRITE_CHARACTERISTIC_UUID: Uuid = Uuid::from_u128(0x1086fff1_3343_4817_8bb2_b32206336ce8);
 const NOTIFY_CHARACTERISTIC_UUID: Uuid = Uuid::from_u128(0x1086fff2_3343_4817_8bb2_b32206336ce8);
 
-pub fn is_relevant(name: &str) -> bool {
+pub fn is_relevant_name(name: &str) -> bool {
     name == THERMOPRO_NAME
+}
+
+pub async fn has_required_characteristics(device: &Peripheral) -> bool {
+    info!("Discover peripheral services...");
+    if !device.discover_services().await.is_ok() {
+        return false;
+    }
+
+    let characteristics = device.characteristics();
+    let notify_characteristic = characteristics
+        .iter()
+        .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
+        .unwrap();
+    let write_characteristic = characteristics
+        .iter()
+        .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
+        .unwrap();
+
+    info!("Checking characteristic {:?}", notify_characteristic);
+    // Subscribe to notifications from the characteristic with the selected
+    // UUID.
+    is_notify_characteristic(notify_characteristic) && is_write_characteristic(write_characteristic)
 }
 
 fn is_notify_characteristic(characteristic: &Characteristic) -> bool {
@@ -25,8 +48,7 @@ fn is_write_characteristic(characteristic: &Characteristic) -> bool {
         && characteristic.properties.contains(CharPropFlags::WRITE)
 }
 
-pub async fn run_for_device<P: Peripheral>(device: &P) -> Result<(), Box<dyn Error>> {
-    println!("Discover peripheral services...");
+pub async fn run_for_device(device: Peripheral) -> Result<(), Box<dyn Error>> {
     device.discover_services().await?;
     let characteristics = device.characteristics();
     let notify_characteristic = characteristics
@@ -38,7 +60,7 @@ pub async fn run_for_device<P: Peripheral>(device: &P) -> Result<(), Box<dyn Err
         .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
         .unwrap();
 
-    println!("Checking characteristic {:?}", notify_characteristic);
+    info!("Checking characteristic {:?}", notify_characteristic);
     // Subscribe to notifications from the characteristic with the selected
     // UUID.
     if !is_notify_characteristic(notify_characteristic)
@@ -47,7 +69,7 @@ pub async fn run_for_device<P: Peripheral>(device: &P) -> Result<(), Box<dyn Err
         return Err("Bad characteristics".into());
     }
 
-    println!(
+    info!(
         "Subscribing to characteristic {:?}",
         notify_characteristic.uuid
     );
