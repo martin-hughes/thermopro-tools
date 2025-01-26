@@ -5,8 +5,8 @@ extern crate pretty_env_logger;
 extern crate log;
 
 use crate::thermopro::{
-    communicator, get_write_characteristic, has_required_characteristics, is_relevant_name,
-    subscribe_to_notifications, TwoWayChannel,
+    controller, convert_commands, convert_notifications, get_write_characteristic,
+    has_required_characteristics, is_relevant_name, subscribe_to_notifications,
 };
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
@@ -101,52 +101,57 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut notifications = subscribe_to_notifications(&device).await?.unwrap();
     let device_writer = get_write_characteristic(&device).await?;
 
+    // The gist of all these channels and async tasks is to form a pipeline:
+    // Bluetooth peripheral sends Bytes,
+    // Bytes are converted to Notification,
+    // `controller` receives Notifications, and sends out Commands as needed,
+    // Commands are converted to Bytes,
+    // Bytes sent back to peripheral.
     const CHANNEL_SIZE: usize = 10;
     let (notification_tx, notification_rx) = channel(CHANNEL_SIZE);
-    let (write_tx, mut write_rx) = channel(CHANNEL_SIZE);
-
-    let to_communicator = TwoWayChannel {
-        receiver: notification_rx,
-        sender: write_tx,
-    };
+    let (controller_in_tx, controller_in_rx) = channel(CHANNEL_SIZE);
+    let (controller_out_tx, controller_out_rx) = channel(CHANNEL_SIZE);
+    let (command_tx, mut command_rx) = channel(CHANNEL_SIZE);
 
     let mut tasks = JoinSet::new();
 
-    // "Communicator" - receives byte stream from BLE and converts it to commands and vice versa
-    let _ = tasks.spawn(communicator(to_communicator));
+    let _ = tasks.spawn(convert_notifications(notification_rx, controller_in_tx));
+    let _ = tasks.spawn(controller(controller_in_rx, controller_out_tx));
+    let _ = tasks.spawn(convert_commands(controller_out_rx, command_tx));
 
-    // Bluetooth notifications to communicator
+    // Receiving from the bluetooth peripheral
     let _ = tasks.spawn(async move {
         while let Some(data) = timeout(Duration::from_secs(4), notifications.next())
             .await
             .unwrap()
         {
-            match notification_tx.send(data.value.into()).await {
-                Err(_) => return,
-                Ok(_) => {}
+            if (notification_tx.send(data.value.into()).await).is_err() {
+                return;
             };
         }
     });
 
-    // Communicator to bluetooth peripheral
+    // Sending to the bluetooth peripheral
     let _ = tasks.spawn(async move {
-        while let Some(data) = write_rx.recv().await {
+        while let Some(data) = command_rx.recv().await {
             println!("Write {:x}", data);
-            match device
+            if (device
                 .write(
                     &device_writer,
-                    &data.iter().as_slice(),
+                    data.iter().as_slice(),
                     WriteType::WithoutResponse,
                 )
-                .await
+                .await)
+                .is_err()
             {
-                Err(_) => return,
-                Ok(_) => {}
+                return;
             };
         }
     });
 
+    // If any task fails, bail out.
     tasks.join_next().await;
 
+    // TODO: Probably always sending `Ok` isn't the best response...
     Ok(())
 }

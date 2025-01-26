@@ -98,19 +98,57 @@ pub async fn get_write_characteristic(
     Ok(write_characteristic.clone())
 }
 
-pub struct TwoWayChannel<T> {
-    pub sender: Sender<T>,
-    pub receiver: Receiver<T>,
+pub enum Command {
+    Connect,
 }
 
-pub async fn communicator(mut downstream: TwoWayChannel<Bytes>) {
-    downstream
-        .sender
-        .send(Bytes::copy_from_slice(&CMD))
-        .await
-        .unwrap();
+#[derive(Debug)]
+pub enum Notification {
+    ConnectResponse,
+    Temperatures,
+}
+
+impl TryFrom<Bytes> for Notification {
+    type Error = &'static str;
+    fn try_from(value: Bytes) -> Result<Self, Self::Error> {
+        match value[0] {
+            0x01 => Ok(Notification::ConnectResponse),
+            0x30 => Ok(Notification::Temperatures),
+            _ => Err("Invalid notification type"),
+        }
+    }
+}
+
+impl TryFrom<Command> for Bytes {
+    type Error = &'static str;
+    fn try_from(value: Command) -> Result<Self, Self::Error> {
+        match value {
+            Command::Connect => Ok(Bytes::from_static(&CMD)),
+        }
+    }
+}
+
+pub async fn controller(mut incoming: Receiver<Notification>, outgoing: Sender<Command>) {
+    outgoing.send(Command::Connect).await.unwrap();
     loop {
-        let v = downstream.receiver.recv().await.unwrap();
-        println!("Received bytes: {:x}", v);
+        let n = incoming.recv().await.unwrap();
+        println!("Received notification: {:?}", n);
+    }
+}
+
+pub async fn convert_notifications(mut incoming: Receiver<Bytes>, outgoing: Sender<Notification>) {
+    loop {
+        let n = incoming.recv().await.unwrap();
+        outgoing
+            .send(Notification::try_from(n).unwrap())
+            .await
+            .unwrap();
+    }
+}
+
+pub async fn convert_commands(mut incoming: Receiver<Command>, outgoing: Sender<Bytes>) {
+    loop {
+        let cmd = incoming.recv().await.unwrap();
+        outgoing.send(Bytes::try_from(cmd).unwrap()).await.unwrap();
     }
 }
