@@ -42,3 +42,40 @@ commands being sent.
 | Notify          | `300f5a0c00ffffffffffff0331ffffffffcf0140` |
 | Notify          | `300f5a0c00ffffffffffff0331ffffffffcf0140` |
 | ...             | seemingly forever                          |
+
+# Deliberately sending a wrong checksum
+
+Notice how the last nybble has changed from one to zero:
+
+| Write / notify? | Data                                       |
+|-----------------|--------------------------------------------|
+| Write           | `01097032e2c1799db4d1c7b0`                 |
+| Notify          | `e0020102e5c1799db4d1c7b00020480000200200` |
+
+0xe0 response still appears to be an error response. The data is still not clear. No notifications follow.
+
+# Sending a slightly different `0x01` command
+
+This time I changed the second-to-last byte, but made sure the checksum was still correct:
+
+| Write / notify? | Data                                       |
+|-----------------|--------------------------------------------|
+| Write           | `01097032e2c1799db4d1c6b0`                 |
+| Notify          | `01010f11e2c1799db4d1c6b00020c1799db4d1c7` |
+
+A seemingly valid response, but not followed by any other notifications.
+
+# Sending `0x01` and `0x26`
+
+I wondered if anything would change if I sent the 0x26 command after the initial command
+
+| Write / notify? | Data                                       |
+|-----------------|--------------------------------------------|
+| Write           | `01097032e2c1799db4d1c7b1`                 |
+| Notify          | `01010a0ce2c1799db4d1c7b10020c1799db4d1c7` |
+| Write           | `260026`                                   |
+| Notify          | `26050c0c5a030faf00001f1a0020480000200200` |
+| Notify          | `300f5a0c00ffffffffffff0204ffffffffa10140` |                                          
+
+It replied with a normal looking 0x26 response, but with the usual 0x30 notifications thereafter. Therefore "stop
+temperature notifications" is not part of the 0x26 command.

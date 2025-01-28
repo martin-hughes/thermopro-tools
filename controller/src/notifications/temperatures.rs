@@ -5,14 +5,23 @@ use std::convert::TryFrom;
 // 300f5a0c00ffffffffffff0281ffffffff1e0140
 
 #[derive(Debug)]
+struct Checksum {
+    value: u8,
+    valid: bool,
+}
+
+#[derive(Debug)]
 pub struct Temperatures {
     preamble: [u8; 4],
     temps: [Option<u16>; 4], // Temperature in tenths of Celsius
-    suffix: [u8; 7],
+    unknown: [u8; 4],
+    checksum: Checksum,
+    suffix: [u8; 2],
 }
 
 const PREAMBLE: [u8; 4] = [0x0f, 0x5a, 0x0c, 0x00];
-const SUFFIX: [u8; 7] = [0xff, 0xff, 0xff, 0xff, 0x1e, 0x01, 0x40];
+const UNKNOWN: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+const SUFFIX: [u8; 2] = [0x01, 0x40];
 
 fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
     if (val[0] == 0xff) && (val[1] == 0xff) {
@@ -27,16 +36,30 @@ fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
     }
 }
 
+fn calc_checksum(bytes: &Vec<u8>) -> u8 {
+    #[allow(arithmetic_overflow)]
+    let sum: u64 = bytes[0..bytes.len()].iter().map(|x| *x as u64).sum();
+    (sum % 256) as u8
+}
+
 impl TryFrom<Bytes> for Temperatures {
     type Error = &'static str;
     fn try_from(val: Bytes) -> Result<Self, Self::Error> {
-        if (val[1..5] != PREAMBLE) || (val[13..] != SUFFIX) {
-            return Err("Invalid preamble / suffix");
+        if (val[1..5] != PREAMBLE) || (val[18..] != SUFFIX) || (val[13..17] != UNKNOWN) {
+            return Err("Invalid constant parts");
         }
+
+        let data_part = val[0..17].to_vec();
+        let checksum_val = calc_checksum(&data_part);
 
         let mut t = Temperatures {
             preamble: PREAMBLE,
             temps: [Some(0); 4],
+            unknown: UNKNOWN,
+            checksum: Checksum {
+                value: checksum_val,
+                valid: checksum_val == val[17],
+            },
             suffix: SUFFIX,
         };
 
@@ -77,7 +100,9 @@ mod tests {
             0xff, 0xff, 0xff, 0x1e, 0x01, 0x40,
         ]);
         let t = Temperatures::try_from(bytes);
-
         assert!(t.is_ok());
+
+        let s = t.unwrap();
+        assert!(s.checksum.valid);
     }
 }

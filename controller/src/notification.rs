@@ -5,6 +5,7 @@ use bytes::Bytes;
 pub enum Notification {
     ConnectResponse,
     Temperatures(Temperatures),
+    TwoSixResponse,
 }
 
 impl TryFrom<Bytes> for Notification {
@@ -13,6 +14,7 @@ impl TryFrom<Bytes> for Notification {
         match value[0] {
             0x01 => Ok(Notification::ConnectResponse),
             0x30 => Ok(Notification::Temperatures(value.try_into()?)),
+            0x26 => Ok(Notification::TwoSixResponse),
             _ => Err("Invalid notification type"),
         }
     }
