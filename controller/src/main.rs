@@ -1,12 +1,22 @@
 use futures::StreamExt;
-mod thermopro;
+mod command;
+mod controller;
+mod convert_commands;
+mod convert_notifications;
+mod notification;
+mod notifications;
+mod peripheral;
+
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use crate::thermopro::{
-    controller, convert_commands, convert_notifications, get_write_characteristic,
-    has_required_characteristics, is_relevant_name, subscribe_to_notifications,
+use crate::controller::controller;
+use crate::convert_commands::convert_commands;
+use crate::convert_notifications::convert_notifications;
+use crate::peripheral::{
+    get_write_characteristic, has_required_characteristics, is_relevant_name,
+    subscribe_to_notifications,
 };
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};

@@ -59,6 +59,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "bcd-convert"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71a18a98ca044380fc93aa29f45577996d8aee9b689176b56327f3080280d798"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -753,6 +762,7 @@ dependencies = [
 name = "thermopro"
 version = "0.1.0"
 dependencies = [
+ "bcd-convert",
  "btleplug",
  "bytes",
  "futures",
