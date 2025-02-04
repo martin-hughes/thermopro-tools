@@ -26,8 +26,8 @@ I use BLE terminology liberally without explaining it here. If you're not famili
 
 ## Data flow
 
-As far as I can tell, the thermometer will only send notifications in response to a command. So, broadly speaking, the
-normal data flow is:
+As far as I can tell, the thermometer will normally only send notifications in response to a command. So, broadly
+speaking, the normal data flow is:
 
 * Send command
 * Wait for notification
@@ -39,8 +39,8 @@ easier to manage the state of the controlling app.
 
 An example data flow can be seen in [this example](./examples/driven-by-app)
 
-> Having said this, the thermometer will send unsolicited notifications, see
-> [one of the basics tests](./examples/basic-tests.md#sending-a-0x01-command).
+The exception is to the normal data flow is that the thermometer appears to periodically send temperature updates (0x30
+response) without needing a 0x30 command first.
 
 ## Commands
 
@@ -48,38 +48,72 @@ All commands appear to be sent in [TLVC format](#tlvc-format).
 
 The following commands are *partially* understood:
 
-| Command | Example                    | Notes                                                                                            |
-|---------|----------------------------|--------------------------------------------------------------------------------------------------|
-| 0x01    | `01097032e2c1799db4d1c7b1` | Some kind of setup instruction. This must be sent or the device will not send 0x30 notifications |
-| 0x30    | `300030`                   | Send temperature data                                                                            |
+| Command | Example                    | Notes                                                                                                                                |
+|---------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------|
+| 0x01    | `01097032e2c1799db4d1c7b1` | Some kind of setup instruction. This must be sent or the device will not send 0x30 notifications                                     |
+| 0x23    | `23060406071000004a`       | Set probe "profile" (which corresponds to alarm temperatures in the app)                                                             | 
+| 0x30    | `300030`                   | Send temperature data. Although it's not clear why this command is needed, the thermometer will send 0x30 without any 0x30 commands. |
 
 The following commands are not understood yet:
 
-| Command | Example              | Notes                                                               |
-|---------|----------------------|---------------------------------------------------------------------|
-| 0x26    | `260026`             | Mode setting instruction? Has no data                               |
-| 0x23    | `23060100ffffffff26` | Appears 4 times in the trace. Set up probe details?                 |
-| 0x24    | `24010126`           | Appears 6 times.                                                    |
-| 0x41    | `410041`             | No data, so perhaps a mode setting command?                         |
-| 0x25    | `250025`             | Another mode setting command? Gets back a temperature-like response |
+| Command | Example    | Notes                                                               |
+|---------|------------|---------------------------------------------------------------------|
+| 0x26    | `260026`   | Mode setting instruction? Has no data                               |
+| 0x24    | `24010126` | Appears 6 times.                                                    |
+| 0x41    | `410041`   | No data, so perhaps a mode setting command?                         |
+| 0x25    | `250025`   | Another mode setting command? Gets back a temperature-like response |
+| 0x27    | `270027`   | Seems to be sent when alarm is triggered, but not yet tested.       |
+
+### Set probe profile command format 0x23
+
+The 0x23 set probe profile command seems to be:
+
+```c
+struct {
+  uint8_t command;          /* 0x23 */
+  uint8_t length;           /* 6 */
+  uint8_t probe_index;      /* 1-based */
+  uint8_t unknown;          /* see below */
+  uint16_t high_temp_alarm; /* Alarm at this temperature */
+  uint16_t low_temp_alarm;       /* Most likely the low temperature alarm for ranges, but not yet known */
+  uint8_t checksum;
+```
+
+* For `unknown` I've observed two things. 0x00 is followed by both the temperature fields being filled with 0xff. Other
+  values are followed by sensible temperatures in the temperature fields.
+* `high_temp_alarm` and `low_temp_alarm` follow the same BCD-ish format described
+  in [Temperature data format](#temperature-data-0x30-format).
+* `0x0000` in `low_temp_alarm` may mean "no low temperature set", or it may be that some flag in `unknown` distinguishes
+  range temperature profiles from single temperature ones.
+* If no "profile" (of alarms) is associated with a probe, both `high_temp_alarm` and `unknown_2` are filled with 0xffff.
+  * and `unknown` is set to 0x00.
 
 ## Responses
 
-All responses appear to be 20 bytes long. Apart
+All responses as received over the air appear to be 20 bytes long. Generally all are received after a command with the
+same first byte is sent. The exceptions are:
 
-| Command | Example                                    | Notes                                               |
-|---------|--------------------------------------------|-----------------------------------------------------|
-| 0x01    | `01010a0ce2c1799db4d1c7b10020c1799db4d1c7` | Not understood, but interestingly repetitive.       |
-| 0x26    | `26050c0c5a030faf0000071a0020480000200200` | Not understood                                      |
-| 0x23    | `2302010026ffffff260000450200384c0200ffff` | Not understood                                      |
-| 0x24    | `24060200ffffffff2800001a0020480000200200` | Not understood. Weird that it's sent 6 times        |
-| 0x25    | `250e0600ffffffffffff0223ffffffff54200200` | Possibly a different format of temperature response |
-| 0x30    | `300f5a0c00ffffffffffff0325ffffffffc30140` | Temperature data                                    |
-| 0xe0    | `E00230041600917D0000E9190020480000200200` | Error?                                              |
+* 0x30 temperature data notifications can be sent any time.
+* 0xe0 seems to be sent if an invalid command has been sent.
 
-### Temperature data format
+Each response appears to have a valid checksum byte at the same position. Assuming the [TVC format](#tvc-format) below
+is correct, the `length` field for each command is given in this table. I suspect that the part after the checksum is
+junk, but I don't know for sure.
 
-Appears to be:
+| Command | Example                                    | Data Length | Notes                                               |
+|---------|--------------------------------------------|-------------|-----------------------------------------------------|
+| 0x01    | `01010a0ce2c1799db4d1c7b10020c1799db4d1c7` | 2           | Not understood, but interestingly repetitive.       |
+| 0x26    | `26050c0c5a030faf0000071a0020480000200200` | 6           | Not understood                                      |
+| 0x23    | `2302010026ffffff260000450200384c0200ffff` | 3           | Set probe profile response. Not understood.         |
+| 0x24    | `24060200ffffffff2800001a0020480000200200` | 7           | Not understood. Weird that it's sent 6 times        |
+| 0x25    | `250e0600ffffffffffff0223ffffffff54200200` | 15          | Possibly a different format of temperature response |
+| 0x27    | `270027000000917d0000da190020480000200200` | 1           | Acknowledgement of alarm being triggered?           |
+| 0x30    | `300f5a0c00ffffffffffff0325ffffffffc30140` | 16          | Temperature data                                    |
+| 0xe0    | `E00230041600917D0000E9190020480000200200` | 0?          | Error?                                              |
+
+### Temperature data (0x30) format
+
+The temperature data sent in an 0x30 response appears to be:
 
 ```c
 struct {
@@ -87,7 +121,7 @@ struct {
   uint32_t preamble[4];     /* 0f5a0c00 - not understood */
   uint16_t temperatures[6];
   uint8_t checksum;
-  uint16_t suffix;          /* 0140 - not understood */
+  uint16_t suffix;          /* 0140 - seems to be constant, but probably junk */
 };
 ```
 
@@ -98,8 +132,8 @@ I do not know why there is space for 6 temperatures when it's a 4-probe thermome
 
 ## TLVC format
 
-TLVC is shorthand for "type, length, value, checksum". It seems to only be used for commands, the responses are sent
-back in a format I haven't fully understood. The format is (in a pseudo-C):
+TLVC is shorthand for "type, length, value, checksum". It seems to only be used for commands. The format is (in a
+pseudo-C):
 
 ```c
 struct {
@@ -119,3 +153,19 @@ for (uint8_t i = 0; i < command->length + 2; i++, ptr++) {
   checksum += *ptr; /* Assuming your compiler wraps integers like most do */
 }
 ```
+
+## TVC Format
+
+TVC is shorthand for "type, value, checksum". It appears to be in use for notifications. The format is (in a
+pseudo-C):
+
+```c
+struct {
+  uint8_t type;                 /* The command being sent */
+  uint8_t value[length];        /* length is only known from the `type` value, it is not sent over the wire */
+  uint8_t checksum;             /* described below */
+  uint8_t unknown[18 - length]; /* rest of response appears to be garbage... */
+}
+```
+
+Checksum has the same meaning as for commands - mod 255 addition.

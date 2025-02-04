@@ -104,6 +104,13 @@ fn decode_chunks(encoded: Vec<u8>) -> Vec<PossibleChunk> {
     chunks
 }
 
+/*
+ * Given a value in the form of hex string as an argument, searches for chunks of the value that
+ * could be in the TLVC format.
+ *
+ * This program was useful for checking that all commands are TLVC, and for showing that responses
+ * are not TLVC.
+ */
 fn main() {
     // Get command line arguments
     let args: Vec<String> = env::args().collect();
