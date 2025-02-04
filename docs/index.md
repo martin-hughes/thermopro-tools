@@ -59,15 +59,17 @@ The following commands are *partially* understood
   not send 0x30 notifications
 * [0x23 - set probe profile](./commands/0x23-set-probe-profile.md). Set probe "profile" (which corresponds to alarm
   temperatures in the app)
-* [0x30 - Send temp report](./commands/0x30-send-temp-report.md) . It's not clear why this command is needed, the
+* [0x24 - report probe profile](./commands/0x24-report-probe-profile). Report the probe's temperature profile back to
+  the app.
+* [0x25 - alternative temp report](./commands/0x25-alt-temp-report). Only seen once per flow, not clear why this is
+  needed, given the presence of command 0x30.
+* [0x30 - send temp report](./commands/0x30-send-temp-report.md). It's not clear why this command is needed, the
   thermometer will send 0x30 without any 0x30 commands
 
 The following commands are not really understood yet:
 
 * [0x26 - Unknown](./commands/0x26-unknown.md), only seen once per flow
-* [0x24](./commands/0x24-unknown.md) - Appears 6 times when driven by the app
 * [0x41 - Unknown](./commands/0x41-unknown.md), only seen once per flow
-* [0x25](./commands/0x25-unknown.md) - Only seen once per flow, but gets back a temperature-like response
 * [0x27 alarm acknowledge](./commands/0x27-alarm-acknowledge.md) - Seems to be sent when alarm is triggered, but not yet
   tested
 * [0xe0 - Error](./commands/0xe0-error.md)
@@ -76,17 +78,17 @@ The following commands are not really understood yet:
 
 > In these examples, the "junk" data is shown for responses. In other parts of the documentation, it is not.
 
-| Command | Brief description  | Example command               | Example response                               |
-|---------|--------------------|-------------------------------|------------------------------------------------|
-| 0x01    | Setup              | `01 09 7032e2c1799db4d1c7 b1` | `01 01 0a 0c e2c1799db4d1c7b10020c1799db4d1c7` |
-| 0x23    | Set probe profile  | `23 06 040607100000 4a`       | `23 02 0100 26 ffffff260000450200384c0200ffff` | 
-| 0x30    | Send temp reports  | `30 00 30`                    | `30 0f 5a0c00ffffffffffff0325ffffffff c3 0140` |
-| 0x26    | Maybe set mode?    | `26 00 26`                    | `26 05 0c0c5a030f af 0000071a0020480000200200` |
-| 0x24    | Unknown            | `24 01 02 27`                 | `24 06 0200ffffffff 28 00001a0020480000200200` |
-| 0x41    | Unknown            | `41 00 41`                    | `41 02 3111 85 00917d0000c8190020480000200200` |
-| 0x25    | Unknown            | `25 00 25`                    | `25 0e 0600ffffffffffff0223ffffffff 54 200200` |
-| 0x27    | Alarm acknowledge? | `27 00 27`                    | `27 00 27 000000917d0000da190020480000200200`  |
-| 0xe0    | Error?             | (never observed being sent)   | `E0 02 3004 16 00917D0000E9190020480000200200` |
+| Command | Brief description    | Example command               | Example response                               |
+|---------|----------------------|-------------------------------|------------------------------------------------|
+| 0x01    | Setup                | `01 09 7032e2c1799db4d1c7 b1` | `01 01 0a 0c e2c1799db4d1c7b10020c1799db4d1c7` |
+| 0x23    | Set probe profile    | `23 06 040607100000 4a`       | `23 02 0100 26 ffffff260000450200384c0200ffff` | 
+| 0x30    | Send temp reports    | `30 00 30`                    | `30 0f 5a0c00ffffffffffff0325ffffffff c3 0140` |
+| 0x26    | Maybe set mode?      | `26 00 26`                    | `26 05 0c0c5a030f af 0000071a0020480000200200` |
+| 0x24    | Report probe profile | `24 01 04 29`                 | `24 06 04fa02900250 0c 00a1190020480000200200` |
+| 0x41    | Unknown              | `41 00 41`                    | `41 02 3111 85 00917d0000c8190020480000200200` |
+| 0x25    | Unknown              | `25 00 25`                    | `25 0e 0600ffffffffffff0223ffffffff 54 200200` |
+| 0x27    | Alarm acknowledge?   | `27 00 27`                    | `27 00 27 000000917d0000da190020480000200200`  |
+| 0xe0    | Error?               | (never observed being sent)   | `E0 02 3004 16 00917D0000E9190020480000200200` |
 
 ### Command and response observations
 

@@ -235,3 +235,81 @@ I forgot to note whether I cancelled the alarm in the app or on the device :roll
 | Notify | `30 0f 5a0c00ffffffffffff0235ffffffff d2 0140` |
 | Write  | `30 00 30`                                     |
 
+## Waking up with two profiles set, triggering alarms
+
+The device was woken with two profiles set:
+
+* Probe 1: Fish, 63C
+* Probe 4: Range 25-29C
+
+Probe 4 was warmed and cooled to take it beyond the alarm ranges, the alarm was cancelled on the thermometer.
+
+| W/N?   | Data                                           |
+|--------|------------------------------------------------|
+| Write  | `01 09 84c12bb7aa73291d11 a5`                  |
+| Notify | `01 01 0a 0c 2bb7aa73291d11a50020b7aa73291d11` |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000071a0020480000200200` |
+| Write  | `23 06 010206300000 62`                        |
+| Notify | `23 02 0102 28 3000006200001a0020480000200200` |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Notify | `23 02 0200 27 ffffff270000190020480000200200` |
+| Write  | `23 06 0300ffffffff 28`                        |
+| Notify | `23 02 0300 28 ffffff280000e000e0f1ffffff0000` |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Notify | `23 02 04fa 23 9002500b0000190020480000200200` |
+| Write  | `24 01 01 26`                                  |
+| Notify | `24 06 010206300000 63 00ec190020480000200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0207ffffffff a4 0140` |
+| Write  | `24 01 02 27`                                  |
+| Notify | `24 06 0200ffffffff 28 00001a0020480000200200` |
+| Write  | `30 00 30`                                     |
+| Write  | `24 01 03 28`                                  |
+| Notify | `24 06 0300ffffffff 29 00271a0020480000200200` |
+| Write  | `24 01 04 29`                                  |
+| Notify | `24 06 04fa02900250 0c 00a1190020480000200200` |
+| Write  | `24 01 05 2a`                                  |
+|        | This one seems ignored and I don't know why    |
+| Write  | `24 01 06 2b`                                  |
+| Notify | `24 06 0600ffffffff 2c 00c9190020480000200200` |
+| Write  | `41 00 41`                                     |
+| Notify | `41 02 3111 85 00917d0000dd190020480000200200` |
+| Write  | `25 00 25`                                     |
+| Notify | `25 0e 0600ffffffffffff0207ffffffff 38 200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0239ffffffff d6 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0280ffffffff 1d 0140` |
+| Notify | `30 0f 5a0c00ffffffffffff0280ffffffff 1d 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0305ffffffff ab 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0320ffffffff c6 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0320ffffffff be 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0330ffffffff ce 0140` |
+| Write  | `b00c30` (* - should be 300030?)               |
+| Notify | `30 0f 5a0c00ffffffffffff0317ffffffff b5 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0310ffffffff ae 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0301ffffffff 9f 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0292ffffffff 2f 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0281ffffffff 1e 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0268ffffffff 05 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0260ffffffff fd 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0253ffffffff f8 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0248ffffffff e5 0140` |
+| Write  | `30 00 30`                                     |
+
+\* This row was a CRC failure, so likely miscaptured.
+
+It looks as though the 3rd byte of the temperature payload is set to 0x08 if there is an active alarm, and that
+cancelling the alarm on the thermometer resets that byte to zero.
