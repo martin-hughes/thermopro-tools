@@ -24,6 +24,8 @@ I accept no liability if you get in trouble for reading further - you have been 
 # Tools
 
 * `tlv-check` - a tool I wrote to test my assumptions about the format of TP-25 data packets
+* `checksum_test` - This takes a hex string and attempts to find any bytes that could be the checksum of the previous
+  bytes.
 * `controller` - attempts to program and get data back from a TP-25
 
 # Documentation

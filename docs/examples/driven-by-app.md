@@ -9,66 +9,65 @@ probe being gently warmed up.
 * 0x13: The readable characteristic's data attribute
 * 0x14: The readable characteristic's CCC (written to configure notifications to be sent)
 
-"Checksum length" refers to the length of bytes which can be added together, mod 255, to produce the next byte. That is,
-a checksum length of 4 implies that bytes (pseudocode) `Sum(bytes [0, 1, 2, 3]) % 255 == bytes[4]`. This is only
-calculated for notifies, as commands always follow the TLVC structure.
+Throughout all these tables, all Data entries are split into TLV fields with notifications also showing the (likely)
+junk suffix.
 
 ## Basic data flow
 
 App connects to the thermometer, receives temperature indications. No changes made in app.
 
-| R/W/N  | Handle | Data                                          | Checksum length |
-|--------|--------|-----------------------------------------------|-----------------|
-| Write  | 0x14   | `0100` (0x01) - setup notifications from 0x13 |                 |
-| Write  | 0x11   | `01097032e2c1799db4d1c7b1`                    |                 |
-| Notify | 0x13   | `01010a0ce2c1799db4d1c7b10020c1799db4d1c7`    | 3               |
-| Write  | 0x11   | `260026`                                      |                 |
-| Notify | 0x13   | `26050c0c5a030faf0000071a0020480000200200`    | 7               |
-| Write  | 0x11   | `23060100ffffffff26`                          |                 |
-| Notify | 0x13   | `2302010026ffffff260000450200384c0200ffff`    | 4               |
-| Write  | 0x11   | `23060200ffffffff27`                          |                 |
-| Notify | 0x13   | `2302020027ffffff270000190020480000200200`    | 4               |
-| Write  | 0x11   | `23060300ffffffff28`                          |                 |
-| Notify | 0x13   | `2302030028ffffff280000190020480000200200`    | 4               |
-| Write  | 0x11   | `23060400ffffffff29`                          |                 |
-| Notify | 0x13   | `2302040029ffffff290000190020480000200200`    | 4               |
-| Write  | 0x11   | `24010126`                                    |                 | 
-| Notify | 0x13   | `24060100ffffffff2700ec190020480000200200`    | 8               |
-| Write  | 0x11   | `24010227`                                    |                 |
-| Notify | 0x13   | `24060200ffffffff2800001a0020480000200200`    | 8               |
-| Write  | 0x11   | `24010328`                                    |                 |
-| Notify | 0x13   | `24060300ffffffff2900141a0020480000200200`    | 8               |
-| Write  | 0x11   | `24010429`                                    |                 | 
-| Notify | 0x13   | `24060400ffffffff2a00281a0020480000200200`    | 8               |
-| Write  | 0x11   | `2401052a`                                    |                 |
-| Notify | 0x13   | `24060500ffffffff2b00a1190020480000200200`    | 8               |
-| Write  | 0x11   | `2401062b`                                    |                 |
-| Notify | 0x13   | `24060600ffffffff2c00b5190020480000200200`    | 8               |
-| Write  | 0x11   | `410041`                                      |                 |
-|        |        | Bad CRC - miscaptured notify?                 |                 |
-| Write  | 0x11   | `250025`                                      |                 |
-| Notify | 0x13   | `250e0600ffffffffffff0223ffffffff54200200`    | 16              |
-|        |        | No initial 0x30 command here?                 |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0222ffffffffbf0140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0233ffffffffd00140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-|        |        | A connection params update happened here      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0258fffffffff50140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0281ffffffff1e0140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0297ffffffff340140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0310ffffffffae0140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0325ffffffffc30140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0309ffffffffa70140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 |
-| Notify | 0x13   | `300f5a0c00ffffffffffff0293ffffffff300140`    | 17              |
-| Write  | 0x11   | `300030`                                      |                 | 
-| Notify | 0x13   | `300f5a0c00ffffffffffff0281ffffffff1e0140`    | 17              |
+| R/W/N  | Handle | Data                                           |
+|--------|--------|------------------------------------------------|
+| Write  | 0x14   | `0100` (0x01) - setup notifications from 0x13  |
+| Write  | 0x11   | `01 09 7032e2c1799db4d1c7 b1`                  |
+| Notify | 0x13   | `01 01 0a 0c e2c1799db4d1c7b10020c1799db4d1c7` |
+| Write  | 0x11   | `26 00 26`                                     |
+| Notify | 0x13   | `26 05 0c0c5a030f af 0000071a0020480000200200` |
+| Write  | 0x11   | `23 06 0100ffffffff 26`                        |
+| Notify | 0x13   | `23 02 0100 26 ffffff260000450200384c0200ffff` |
+| Write  | 0x11   | `23 06 0200ffffffff 27`                        |
+| Notify | 0x13   | `23 02 0200 27 ffffff270000190020480000200200` |
+| Write  | 0x11   | `23 06 0300ffffffff 28`                        |
+| Notify | 0x13   | `23 02 0300 28 ffffff280000190020480000200200` |
+| Write  | 0x11   | `23 06 0400ffffffff 29`                        |
+| Notify | 0x13   | `23 02 0400 29 ffffff290000190020480000200200` |
+| Write  | 0x11   | `24 01 01 26`                                  | 
+| Notify | 0x13   | `24 06 0100ffffffff 27 00ec190020480000200200` |
+| Write  | 0x11   | `24 01 02 27`                                  |
+| Notify | 0x13   | `24 06 0200ffffffff 28 00001a0020480000200200` |
+| Write  | 0x11   | `24 01 03 28`                                  |
+| Notify | 0x13   | `24 06 0300ffffffff 29 00141a0020480000200200` |
+| Write  | 0x11   | `24 01 04 29`                                  | 
+| Notify | 0x13   | `24 06 0400ffffffff 2a 00281a0020480000200200` |
+| Write  | 0x11   | `24 01 05 2a`                                  |
+| Notify | 0x13   | `24 06 0500ffffffff 2b 00a1190020480000200200` |
+| Write  | 0x11   | `24 01 06 2b`                                  |
+| Notify | 0x13   | `24 06 0600ffffffff 2c 00b5190020480000200200` |
+| Write  | 0x11   | `41 00 41`                                     |
+|        |        | Bad CRC - miscaptured notify?                  |
+| Write  | 0x11   | `25 00 25`                                     |
+| Notify | 0x13   | `25 0e 0600ffffffffffff0223ffffffff 54 200200` |
+|        |        | No initial 0x30 command here?                  |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0222ffffffff bf 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0233ffffffff d0 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+|        |        | A connection params update happened here       |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0258ffffffff f5 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0281ffffffff 1e 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0297ffffffff 34 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0310ffffffff ae 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0325ffffffff c3 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0309ffffffff a7 0140` |
+| Write  | 0x11   | `30 00 30`                                     |
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0293ffffffff 30 0140` |
+| Write  | 0x11   | `30 00 30`                                     | 
+| Notify | 0x13   | `30 0f 5a0c00ffffffffffff0281ffffffff 1e 0140` |
 
 ## Setting a temperature profile
 
@@ -80,48 +79,48 @@ I've omitted the handles because they appear to be constant.
   observations
 * 0x23 command/response seem to set the temperature profile.
 
-| W/N?   | Data                                       | Checksum Length |
-|--------|--------------------------------------------|-----------------|
-| Write  | `0109b03fc1e879ee9d6d778a`                 |                 |
-| Notify | `01010a0cc1e879ee9d6d778a0020e879ee9d6d77` | 3               |
-| Write  | `260026`                                   |                 |
-| Notify | `26050c0c5a030faf0000f3190020480000200200` | 7               |
-| Write  | `23060100ffffffff26`                       |                 |
-| Notify | `2302010026ffffff260000e000e0f1ffffff384c` | 4               |
-| Write  | `23060200ffffffff27`                       |                 |
-| Notify | `2302020027ffffff2700001a0020480000200200` | 4               |
-| Write  | `23060300ffffffff28`                       |                 |
-| Notify | `2302030028ffffff280000e000e0f1ffffff0000` | 4               |
-| Write  | `23060400ffffffff29`                       |                 |
-| Notify | `2302040029ffffff290000190020480000200200` | 4               |
-| Write  | `24010126`                                 |                 |
-| Notify | `24060100ffffffff2700d3190020480000200200` | 8               |
-| Write  | `24010227`                                 |                 |
-| Notify | `24060200ffffffff2800e7190020480000200200` | 8               |
-| Write  | `24010328`                                 |                 |
-| Notify | `24060300ffffffff2900fb190020480000200200` | 8               |
-| Write  | `24010429`                                 |                 |
-| Notify | `24060400ffffffff2a000f1a0020480000200200` | 8               |
-| Write  | `2401052a`                                 |                 |
-| Notify | `24060500ffffffff2b00231a0020480000200200` | 8               |
-| Notify | `300f5a0c00ffffffffffff0185ffffffff210140` | 17              |
-| Write  | `2401062b`                                 |                 |
-| Notify | `24060600ffffffff2c00a1190020480000200200` | 8               |
-| Write  | `300030`                                   |                 |
-| Write  | `410041`                                   |                 |
-| Notify | `410231118500917d0000c8190020480000200200` | 4               |
-| Write  | `250025`                                   |                 |
-| Notify | `250e0600ffffffffffff0185ffffffffb5200200` | 16              |
-|        | Connection parameters update               |                 |
-| Notify | `300f5a0c00ffffffffffff0186ffffffff220140` | 17              |
-| Write  | `300030`                                   |                 |
-| Write  | `230604050740000079` (Lamb 74C)            |                 |
-|        | Miscaptured packets                        |                 |
-| Write  | `23060406071000004a` (Pork 71C)            |                 |
-| Notify | `230204062f1000004a0003190020480000200200` | 4               |
-| Write  | `23060400ffffffff29` (No profile)          |                 |
-|        | Took 5 attempts before write ack'd         |                 |
-| Notify | `2302040029ffffff290003190020480000200200` | 4               |
+| W/N?   | Data                                           |
+|--------|------------------------------------------------|
+| Write  | `01 09 b03fc1e879ee9d6d77 8a`                  |
+| Notify | `01 01 0a0c c1e879ee9d6d778a0020e879ee9d6d77`  |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000f3190020480000200200` |
+| Write  | `23 06 0100ffffffff 26`                        |
+| Notify | `23 02 0100 26 ffffff260000e000e0f1ffffff384c` |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Notify | `23 02 0200 27 ffffff2700001a0020480000200200` |
+| Write  | `23 06 0300ffffffff 28`                        |
+| Notify | `23 02 0300 28 ffffff280000e000e0f1ffffff0000` |
+| Write  | `23 06 0400ffffffff 29`                        |
+| Notify | `23 02 040029ffffff 29 0000190020480000200200` |
+| Write  | `24 01 01 26`                                  |
+| Notify | `24 06 0100ffffffff 27 00d3190020480000200200` |
+| Write  | `24 01 02 27`                                  |
+| Notify | `24 06 0200ffffffff 28 00e7190020480000200200` |
+| Write  | `24 01 03 28`                                  |
+| Notify | `24 06 0300ffffffff 29 00fb190020480000200200` |
+| Write  | `24 01 04 29`                                  |
+| Notify | `24 06 0400ffffffff 2a 000f1a0020480000200200` |
+| Write  | `24 01 05 2a`                                  |
+| Notify | `24 06 0500ffffffff 2b 00231a0020480000200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0185ffffffff 21 0140` |
+| Write  | `24 01 06 2b`                                  |
+| Notify | `24 06 0600ffffffff 2c 00a1190020480000200200` |
+| Write  | `30 00 30`                                     |
+| Write  | `41 00 41`                                     |
+| Notify | `41 02 3111 85 00917d0000c8190020480000200200` |
+| Write  | `25 00 25`                                     |
+| Notify | `25 0e 0600ffffffffffff0185ffffffff b5 200200` |
+|        | Connection parameters update                   |
+| Notify | `30 0f 5a0c00ffffffffffff0186ffffffff 22 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `23 06 040507400000 79` (Lamb 74C)             |
+|        | Miscaptured packets                            |
+| Write  | `23 06 040607100000 4a` (Pork 71C)             |
+| Notify | `23 02 0406 2f 1000004a0003190020480000200200` |
+| Write  | `23 06 0400ffffffff 29` (No profile)           |
+|        | Took 5 attempts before write ack'd             |
+| Notify | `23 02 0400 29 ffffff290003190020480000200200` |
 
 ## Setting a range profile and triggering both alarms
 
@@ -132,107 +131,107 @@ I forgot to note whether I cancelled the alarm in the app or on the device :roll
 
 > The repeated write commands are retransmissions (confirmed by looking at the relevant flag in Wireshark)
 
-| W/N?   | Data                                       |
-|--------|--------------------------------------------|
-| Write  | `01094c40d13cee3a246d2985`                 |
-| Notify | `01010a0cd13cee3a246d298500203cee3a246d29` |
-| Write  | `260026`                                   |
-| Notify | `26050c0c5a030faf0000071a0020480000200200` |
-| Write  | `23060100ffffffff26`                       |
-| Notify | `2302010026ffffff260000e000e0f1ffffff384c` |
-| Write  | `23060200ffffffff27`                       |
-| Notify | `2302020027ffffff270000190020480000200200` |
-| Write  | `23060300ffffffff28`                       |
-| Notify | `2302030028ffffff280000e000e0f1ffffff0000` |
-| Write  | `23060400ffffffff29`                       |
-| Notify | `2302040029ffffff290000190020480000200200` |
-| Write  | `24010126`                                 |
-| Notify | `24060100ffffffff2700ec190020480000200200` |
-| Write  | `24010227`                                 |
-| Notify | `24060200ffffffff2800001a0020480000200200` |
-| Write  | `24010328`                                 |
-| Notify | `24060300ffffffff2900141a0020480000200200` |
-| Write  | `24010429`                                 |
-| Notify | `24060400ffffffff2a00281a0020480000200200` |
-| Write  | `2401052a`                                 |
-| Notify | `24060500ffffffff2b00a1190020480000200200` |
-| Write  | `2401062b`                                 |
-| Notify | `24060600ffffffff2c00b5190020480000200200` |
-| Write  | `410041`                                   |
-| Notify | `410231118500917d0000c9190020480000200200` |
-| Write  | `250025`                                   |
-| Notify | `250e0600ffffffffffff0205ffffffff36200200` |
-| Notify | `300f5a0c00ffffffffffff0225ffffffffc20140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0241ffffffffde0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0245ffffffffe20140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0241ffffffffde0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0238ffffffffd50140` |
-| Write  | `300030`                                   |
-| Write  | `230604fa03500250cc`                       |
-| Write  | `230604fa03500250cc`                       |
-| Write  | `230604fa03500250cc`                       |
-| Write  | `230604fa03500250cc`                       |
-| Write  | `230604fa03500250cc`                       |
-| Notify | `230204fa23500250cc0003190020480000200200` |
-| Notify | `300f5a0c00ffffffffffff0236ffffffffd30140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0249ffffffffe60140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0260fffffffffd0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0277ffffffff140140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0290ffffffff2d0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0303ffffffffa10140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0313ffffffffb10140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0295ffffffff320140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0285ffffffff220140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0270ffffffff0d0140` |
-| Write  | `300030`                                   |
-| Write  | `230604fa029002500b`                       |
-| Write  | `230604fa029002500b`                       |
-| Write  | `230604fa029002500b`                       |
-| Write  | `230604fa029002500b`                       |
-| Notify | `300f5a0c00ffffffffffff0264ffffffff010140` |
-| Notify | `230204fa239002500b00031a0020480000200200` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0281ffffffff1e0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c08ffffffffffff0294ffffffff390140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c08ffffffffffff0305ffffffffab0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c08ffffffffffff0315ffffffffbb0140` |
-| Write  | `270027`                                   |
-| Write  | `300030`                                   |
-| Notify | `270027000000917d0000da190020480000200200` |
-| Notify | `300f5a0c00ffffffffffff0292ffffffff2f0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0282ffffffff1f0140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0268ffffffff050140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0256fffffffff30140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c08ffffffffffff0249ffffffffee0140` |
-| Write  | `300030`                                   |
-| Write  | `270027`                                   |
-| Notify | `270027000000917d0000c7190020480000200200` |
-| Notify | `300f5a0c00ffffffffffff0249ffffffffe60140` |
-| Write  | `300030`                                   |
-| Notify | `300f5a0c00ffffffffffff0241ffffffffde0140` |
-| Write  | `300030`                                   |
-| Write  | `230604fa029002500b`                       |
-| Notify | `230204fa239002500b00001a0020480000200200` |
-| Notify | `300f5a0c00ffffffffffff0235ffffffffd20140` |
-| Write  | `300030`                                   |
+| W/N?   | Data                                           |
+|--------|------------------------------------------------|
+| Write  | `01 09 4c40d13cee3a246d29 85`                  |
+| Notify | `01 01 0a 0c d13cee3a246d298500203cee3a246d29` |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000071a0020480000200200` |
+| Write  | `23 06 0100ffffffff 26`                        |
+| Notify | `23 02 0100 26 ffffff260000e000e0f1ffffff384c` |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Notify | `23 02 0200 27 ffffff270000190020480000200200` |
+| Write  | `23 06 0300ffffffff 28`                        |
+| Notify | `23 02 0300 28 ffffff280000e000e0f1ffffff0000` |
+| Write  | `23 06 0400ffffffff 29`                        |
+| Notify | `23 02 0400 29 ffffff290000190020480000200200` |
+| Write  | `24 01 01 26`                                  |
+| Notify | `24 06 0100ffffffff 27 00ec190020480000200200` |
+| Write  | `24 01 02 27`                                  |
+| Notify | `24 06 0200ffffffff 28 00001a0020480000200200` |
+| Write  | `24 01 03 28`                                  |
+| Notify | `24 06 0300ffffffff 29 00141a0020480000200200` |
+| Write  | `24 01 04 29`                                  |
+| Notify | `24 06 0400ffffffff 2a 00281a0020480000200200` |
+| Write  | `24 01 05 2a`                                  |
+| Notify | `24 06 0500ffffffff 2b 00a1190020480000200200` |
+| Write  | `24 01 06 2b`                                  |
+| Notify | `24 06 0600ffffffff 2c 00b5190020480000200200` |
+| Write  | `41 00 41`                                     |
+| Notify | `41 02 3111 85 00917d0000c9190020480000200200` |
+| Write  | `25 00 25`                                     |
+| Notify | `25 0e 0600ffffffffffff0205ffffffff 36 200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0225ffffffff c2 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0241ffffffff de 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0245ffffffff e2 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0241ffffffff de 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0238ffffffff d5 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `23 06 04fa03500250 cc`                        |
+| Write  | `23 06 04fa03500250 cc`                        |
+| Write  | `23 06 04fa03500250 cc`                        |
+| Write  | `23 06 04fa03500250 cc`                        |
+| Write  | `23 06 04fa03500250 cc`                        |
+| Notify | `23 02 04fa 23 500250cc0003190020480000200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0236ffffffff d3 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0249ffffffff e6 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0260ffffffff fd 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0277ffffffff 14 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0290ffffffff 2d 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0303ffffffff a1 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0313ffffffff b1 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0295ffffffff 32 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0285ffffffff 22 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0270ffffffff 0d 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Notify | `30 0f 5a0c00ffffffffffff0264ffffffff 01 0140` |
+| Notify | `23 02 04fa 23 9002500b00031a0020480000200200` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0281ffffffff 1e 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0294ffffffff 39 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0305ffffffff ab 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0315ffffffff bb 0140` |
+| Write  | `27 00 27`                                     |
+| Write  | `30 00 30`                                     |
+| Notify | `27 00 27 000000917d0000da190020480000200200`  |
+| Notify | `30 0f 5a0c00ffffffffffff0292ffffffff 2f 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0282ffffffff 1f 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0268ffffffff 05 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0256ffffffff f3 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c08ffffffffffff0249ffffffff ee 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `27 00 27`                                     |
+| Notify | `27 00 27 000000917d0000c7190020480000200200`  |
+| Notify | `30 0f 5a0c00ffffffffffff0249ffffffff e6 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffffffff0241ffffffff de 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `23 06 04fa02900250 0b`                        |
+| Notify | `23 02 04fa 23 9002500b00001a0020480000200200` |
+| Notify | `30 0f 5a0c00ffffffffffff0235ffffffff d2 0140` |
+| Write  | `30 00 30`                                     |
 
