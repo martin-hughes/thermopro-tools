@@ -15,6 +15,8 @@ which produces notifications. By writing to the writeable one we can control whi
 I use BLE terminology liberally without explaining it here. If you're not familiar, I recommend the Nordic Semiconductor
 [Bluetooth Low Energy Fundamentals course](https://academy.nordicsemi.com/courses/bluetooth-low-energy-fundamentals/).
 
+Other terms I use:
+
 * Packet: A specific *command* written to the writeable characteristic, or *value* read from the notifiable one.
   I guess these aren't exactly packets in the normal networking sense, but I think it gives us the right idea.
 * Command: A value written to the writable characteristic. I describe this as a command because it appears to tell the
