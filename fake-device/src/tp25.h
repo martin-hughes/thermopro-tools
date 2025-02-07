@@ -1,116 +1,51 @@
-/*
- * Copyright (c) 2018 Nordic Semiconductor ASA
- *
- * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
- */
+#pragma once
 
-#ifndef BT_LBS_H_
-#define BT_LBS_H_
+#include <cstdint>
 
-/**@file
- * @defgroup bt_lbs LED Button Service API
- * @{
- * @brief API for the LED Button Service (LBS).
- */
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <zephyr/types.h>
-
-/** @brief LBS Service UUID. */
-#define BT_UUID_LBS_VAL BT_UUID_128_ENCODE(0x00001523, 0x1212, 0xefde, 0x1523, 0x785feabcd123)
-
-/** @brief Button Characteristic UUID. */
-#define BT_UUID_LBS_BUTTON_VAL                                                                     \
-	BT_UUID_128_ENCODE(0x00001524, 0x1212, 0xefde, 0x1523, 0x785feabcd123)
-
-/** @brief LED Characteristic UUID. */
-#define BT_UUID_LBS_LED_VAL BT_UUID_128_ENCODE(0x00001525, 0x1212, 0xefde, 0x1523, 0x785feabcd123)
-
-/* STEP 11.1 - Assign a UUID to the MYSENSOR characteristic */
-/** @brief LED Characteristic UUID. */
-#define BT_UUID_LBS_MYSENSOR_VAL                                                                   \
-	BT_UUID_128_ENCODE(0x00001526, 0x1212, 0xefde, 0x1523, 0x785feabcd123)
-
-#define BT_UUID_LBS BT_UUID_DECLARE_128(BT_UUID_LBS_VAL)
-#define BT_UUID_LBS_BUTTON BT_UUID_DECLARE_128(BT_UUID_LBS_BUTTON_VAL)
-#define BT_UUID_LBS_LED BT_UUID_DECLARE_128(BT_UUID_LBS_LED_VAL)
-/* STEP 11.2 - Convert the array to a generic UUID */
-#define BT_UUID_LBS_MYSENSOR BT_UUID_DECLARE_128(BT_UUID_LBS_MYSENSOR_VAL)
-
-/** @brief Callback type for when an LED state change is received. */
-typedef void (*led_cb_t)(const bool led_state);
-
-/** @brief Callback type for when the button state is pulled. */
-typedef bool (*button_cb_t)(void);
-
-/** @brief Callback struct used by the LBS Service. */
-struct my_lbs_cb {
-	/** LED state change callback. */
-	led_cb_t led_cb;
-	/** Button read callback. */
-	button_cb_t button_cb;
+struct RawNotification {
+  uint8_t value[20];
 };
 
-/** @brief Initialize the LBS Service.
- *
- * This function registers application callback functions with the My LBS
- * Service
- *
- * @param[in] callbacks Struct containing pointers to callback functions
- *			used by the service. This pointer can be NULL
- *			if no callback functions are defined.
- *
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int my_lbs_init(struct my_lbs_cb *callbacks);
+using NotificationCb = void (*)(RawNotification);
 
-/** @brief Send the button state as indication.
- *
- * This function sends a binary state, typically the state of a
- * button, to all connected peers.
- *
- * @param[in] button_state The state of the button.
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int my_lbs_send_button_state_indicate(bool button_state);
+struct Probe {
+  /// Temperature in tenths of a degree
+  uint16_t temp = 200;
 
-/** @brief Send the button state as notification.
- *
- * This function sends a binary state, typically the state of a
- * button, to all connected peers.
- *
- * @param[in] button_state The state of the button.
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int my_lbs_send_button_state_notify(bool button_state);
+  /// Alarm profile index
+  uint8_t alarm_index = 0x00;
 
-/** @brief Send the sensor value as notification.
- *
- * This function sends an uint32_t  value, typically the value
- * of a simulated sensor to all connected peers.
- *
- * @param[in] sensor_value The value of the simulated sensor.
- *
- * @retval 0 If the operation was successful.
- *           Otherwise, a (negative) error code is returned.
- */
-int my_lbs_send_sensor_notify(uint32_t sensor_value);
+  /// Low alarm temp in tenths of degree
+  uint16_t low_alarm_value = 0xffff;
 
-#ifdef __cplusplus
-}
-#endif
+  /// High alarm temp in tenths of degree
+  uint16_t high_alarm_value = 0xffff;
+};
 
-/**
- * @}
- */
+enum class Command : uint8_t {
+  SETUP = 0x01,
+  SET_PROFILE = 0x23,
+  REPORT_PROFILE = 0x24,
+  ALT_TEMP_REPORT = 0x25,
+  UNKNOWN_A = 0x26,
+  ALARM_ACK = 0x27,
+  TEMP_REPORT = 0x30,
+  UNKNOWN_B = 0x41,
+  ERROR = 0xe0,
+};
 
-#endif /* BT_LBS_H_ */
+class TP25 {
+public:
+  explicit TP25(NotificationCb notification_cb);
+
+  ~TP25() = default;
+
+  void receive_command(const uint8_t *buffer, uint8_t length);
+
+  void set_temperature(uint8_t probe_index, uint16_t temperature);
+
+private:
+  const NotificationCb notification_cb;
+
+  Probe probes[4];
+};
