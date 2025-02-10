@@ -37,6 +37,7 @@ else ()
             test/main.cpp
 
             test/responses/temp_report.cpp
+            src/bcd.h
     )
 
     target_link_libraries(

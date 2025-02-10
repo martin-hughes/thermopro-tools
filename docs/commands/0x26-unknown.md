@@ -4,6 +4,8 @@
 
 A command with unknown purpose. Only appears once per session when the app drives the thermometer.
 
+This command must be replied to, or the ThermoPro App will refuse to communicate with the thermometer.
+
 ## Example
 
 * Command: `26 00 26`

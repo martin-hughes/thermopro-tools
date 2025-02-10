@@ -15,10 +15,10 @@ struct Probe {
   /// Alarm profile index
   uint8_t alarm_index = 0x00;
 
-  /// Low alarm temp in tenths of degree
+  /// Low alarm temp in tenths of degree - stored BCDish
   uint16_t low_alarm_value = 0xffff;
 
-  /// High alarm temp in tenths of degree
+  /// High alarm temp in tenths of degree - stored BCDish
   uint16_t high_alarm_value = 0xffff;
 };
 
@@ -41,11 +41,15 @@ public:
   ~TP25() = default;
 
   void receive_command(const uint8_t *buffer, uint8_t length);
+  void receive_timer();
 
-  void set_temperature(uint8_t probe_index, uint16_t temperature);
+  //void set_temperature(uint8_t probe_index, uint16_t temperature);
 
 private:
   const NotificationCb notification_cb;
 
-  Probe probes[4];
+  void set_profile(const uint8_t *buffer, uint8_t length);
+  void report_profile(const uint8_t *buffer, uint8_t length) const;
+
+  Probe probes[6];
 };

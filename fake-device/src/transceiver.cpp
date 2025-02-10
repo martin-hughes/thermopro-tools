@@ -18,7 +18,11 @@
 
 #include "transceiver.h"
 
-LOG_MODULE_DECLARE(TP25_Transceiver);
+extern "C" {
+#include <common/bt_str.h>
+}
+
+LOG_MODULE_DECLARE(TP25_Transceiver, LOG_LEVEL_INF);
 
 namespace {
   transceiver_callbacks callbacks;
@@ -130,13 +134,13 @@ int notify_response(uint8_t const *const buf, const uint8_t len) {
   memcpy(response_buffer, buf, len);
 
   if (!notify_response_enabled) {
+    LOG_DBG("Notification dropped - not enabled.");
     return -EACCES;
   }
 
   // TODO: Remove the magic constant and make sure it always points at the notify chc
-  return bt_gatt_notify(nullptr, &tp25_svc.attrs[4], buf, len);
+  return bt_gatt_notify(nullptr, &tp25_svc.attrs[4], response_buffer, len);;
 }
-
 
 static void response_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value) {
   notify_response_enabled = (value == BT_GATT_CCC_NOTIFY);
@@ -145,5 +149,13 @@ static void response_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t v
 /* A function to register application callbacks for the LED and Button characteristics  */
 bool transceiver_init(const transceiver_callbacks &callbacks) {
   ::callbacks = callbacks;
+
+  // Dump out attribute table for debugging purposes
+  uint16_t i;
+
+  for (i = 0; i < tp25_svc.attr_count; i++) {
+    printk("Attribute %d UUID: %s\n", i, bt_uuid_str(tp25_svc.attrs[i].uuid));
+  }
+
   return true;
 }

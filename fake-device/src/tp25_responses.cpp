@@ -1,5 +1,6 @@
 #include <cstring>
 #include "tp25_internal.h"
+#include "bcd.h"
 
 constexpr auto notification = RawNotification{
   {
@@ -16,20 +17,46 @@ namespace {
     }
     return checksum;
   }
-
-  constexpr uint16_t decToBcd(const uint16_t value) {
-    const uint16_t tenths = value % 10;
-    const uint16_t ones = (value / 10) % 10;
-    const uint16_t tens = (value / 100) % 10;
-    const uint16_t hundreds = (value / 1000) % 10;
-
-    return (hundreds << 12) + (tens << 8) + (ones << 4) + tenths;
-  }
 }
 
 RawNotification getSetupResponse() {
   RawNotification full_response{notification};
   constexpr uint8_t part_response[] = {0x01, 0x01, 0x0a};
+  constexpr uint8_t part_length = sizeof(part_response);
+  std::memcpy(&full_response, part_response, part_length);
+  full_response.value[part_length] = getChecksum(full_response, part_length);
+
+  return full_response;
+}
+
+RawNotification getSetProfileResponse(const uint8_t probe_index, const uint8_t unknown) {
+  RawNotification full_response{notification};
+  const uint8_t part_response[] = {0x023, 0x02, probe_index, unknown};
+  constexpr uint8_t part_length = sizeof(part_response);
+  std::memcpy(&full_response, part_response, part_length);
+  full_response.value[part_length] = getChecksum(full_response, part_length);
+
+  return full_response;
+}
+
+RawNotification getReportProfileResponse(const uint8_t probe_index, const uint8_t unknown,
+                                         uint16_t const high_temp_alarm_bcd, const uint16_t low_temp_alarm_bcd) {
+  RawNotification full_response{notification};
+  const uint8_t part_response[] = {
+    0x024, 0x06, probe_index, unknown, static_cast<uint8_t>((high_temp_alarm_bcd & 0xff00) >> 8),
+    static_cast<uint8_t>(high_temp_alarm_bcd & 0xff), static_cast<uint8_t>((low_temp_alarm_bcd & 0xff00) >> 8),
+    static_cast<uint8_t>(low_temp_alarm_bcd & 0xff)
+  };
+  constexpr uint8_t part_length = sizeof(part_response);
+  std::memcpy(&full_response, part_response, part_length);
+  full_response.value[part_length] = getChecksum(full_response, part_length);
+
+  return full_response;
+}
+
+RawNotification getTwoSixResponse() {
+  RawNotification full_response{notification};
+  const uint8_t part_response[] = {0x26, 0x5, 0x0c, 0x0c, 0x5a, 0x03, 0x0f};
   constexpr uint8_t part_length = sizeof(part_response);
   std::memcpy(&full_response, part_response, part_length);
   full_response.value[part_length] = getChecksum(full_response, part_length);
@@ -55,6 +82,16 @@ RawNotification getTempReportResponse(const Probe *const probes) {
   full_response.value[15] = 0xff;
   full_response.value[16] = 0xff;
   full_response.value[17] = getChecksum(full_response, 17);
+
+  return full_response;
+}
+
+RawNotification getFourOneResponse() {
+  RawNotification full_response{notification};
+  const uint8_t part_response[] = {0x41, 0x02, 0x31, 0x11};
+  constexpr uint8_t part_length = sizeof(part_response);
+  std::memcpy(&full_response, part_response, part_length);
+  full_response.value[part_length] = getChecksum(full_response, part_length);
 
   return full_response;
 }

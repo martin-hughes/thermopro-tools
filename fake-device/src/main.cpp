@@ -37,11 +37,11 @@ namespace {
   constexpr auto RUN_STATUS_LED = DK_LED1;
   constexpr auto CON_STATUS_LED = DK_LED2;
 
-  constexpr auto STACKSIZE = 1024;
+  constexpr auto STACKSIZE = 4096;
   constexpr auto PRIORITY = 7;
 
   constexpr auto RUN_LED_BLINK_INTERVAL = 1000;
-  constexpr auto NOTIFY_INTERVAL = 500;
+  constexpr auto NOTIFY_INTERVAL = 3000;
 
   const bt_data ad[] = {
     BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
@@ -72,8 +72,8 @@ namespace {
 extern "C"
 [[noreturn]] void thermopro_thread() {
   while (true) {
-    // TODO: Do some things.
     k_sleep(K_MSEC(NOTIFY_INTERVAL));
+    if (tp25) { tp25->receive_timer(); }
   }
 }
 
@@ -138,12 +138,12 @@ namespace {
   }
 
   void tp25_notify_request(RawNotification response) {
-    LOG_INF("Notify request\n");
+    LOG_HEXDUMP_INF(response.value, 20, "Notification");
     notify_response(response.value, sizeof(response.value));
   }
 
   void tp25_command_write(const uint8_t *buffer, const uint8_t length) {
-    LOG_INF("Command write\n");
+    LOG_HEXDUMP_INF(buffer, static_cast<uint32_t>(length > 20? 20: length), "Command");
     if (tp25) {
       tp25->receive_command(buffer, length);
     }
