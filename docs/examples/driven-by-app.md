@@ -313,3 +313,136 @@ Probe 4 was warmed and cooled to take it beyond the alarm ranges, the alarm was 
 
 It looks as though the 3rd byte of the temperature payload is set to 0x08 if there is an active alarm, and that
 cancelling the alarm on the thermometer resets that byte to zero.
+
+## Switching between C and F modes
+
+- Start the thermometer (and pair to app)
+- Raise temp in C
+- Toggle to F using app. See that display on device also changes
+- Toggle back to C using app.
+- (Accidentally switch device off and on)
+- Toggle to F using device button
+- Raise and lower temp
+- Toggle to C using device button
+- Raise and lower temp
+
+| W/N?   | Data                                           |
+|--------|------------------------------------------------|
+| Write  | `01 09 b7b22b88e8ceb41d11 be`                  |
+| Notify | `01 01 0a 0c 2b88e8ceb41d11be002088e8ceb41d11` |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000f3190020480000200200` |
+| Write  | `41 00 41`                                     |
+| Notify | `41 02 3111 85 00917d0000061a0020480000200200` |
+| Write  | `25 00 25`                                     |
+| Notify | `25 0e 0600ffffffff0215ffffffffffff 46 200200` |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000a1190020480000200200` |
+| Write  | `23 06 0100ffffffff 26`                        |
+| Notify | `23 02 0100 26 ffffff260000e000e0f1ffffff0000` |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Notify | `23 02 0200 27 ffffff270000190020480000200200` |
+| Write  | `23 06 0300ffffffff 28`                        |
+| Notify | `23 02 0300 28 ffffff280000190020480000200200` |
+| Write  | `23 06 0400ffffffff 29`                        |
+| Notify | `23 02 0400 29 ffffff290003190020480000200200` |
+| Write  | `24 01 01 26`                                  |
+| Notify | `24 06 0100ffffffff 27 00181a0020480000200200` |
+| Write  | `24 01 02 27`                                  |
+| Notify | `24 06 0200ffffffff 28 002c1a0020480000200200` |
+| Write  | `24 01 03 28`                                  |
+| Notify | `24 06 0300ffffffff 29 00a1190020480000200200` |
+| Write  | `24 01 04 29`                                  |
+| Notify | `24 06 0400ffffffff 2a 00b5190020480000200200` |
+| Write  | `24 01 05 2a`                                  |
+| Notify | `24 06 0500ffffffff 2b 00c9190020480000200200` |
+| Write  | `24 01 06 2b`                                  |
+| Notify | `24 06 0600ffffffff 2c 00dd190020480000200200` |
+| Write  | `25 00 25`                                     |
+| Notify | `25 0e 0600ffffffff0215ffffffffffff 46 200200` |
+| Notify | `30 0f 5a0c00ffffffff0218ffffffffffff b5 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0238ffffffffffff d5 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0268ffffffffffff 05 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0283ffffffffffff 20 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `20 01 0f 30`                                  |
+| Notify | `20 00 20 300000917d0000c7190020480000200200`  |
+| Notify | `30 0f 5a0f00ffffffff0271ffffffffffff 11 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0290ffffffffffff 30 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0303ffffffffffff a4 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0293ffffffffffff 33 0140` |
+| Write  | `30 00 30`                                     |
+| Write  | `20 01 0c 2d`                                  |
+| Write  | `20 01 0c 2d`                                  |
+| Write  | `20 01 0c 2d`                                  |
+| Write  | `20 01 0c 2d`                                  |
+| Write  | `20 01 0c 2d`                                  |
+| Notify | `20 00 20 2d0000917d0000271a0020480000200200`  |
+| Notify | `30 0f 5a0c00ffffffff0286ffffffffffff 23 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0280ffffffffffff 1d 0140` |
+| Write  | `30 00 30`                                     |
+|        | Accidentally power cycle device                |
+| Write  | `01 09 af359f1b075b9d4d37 2b`                  |
+| Notify | `01 01 0a 0c 9f1b075b9d4d372b00201b075b9d4d37` |
+| Write  | `26 00 26`                                     |
+| Notify | `26 05 0c0c5a030f af 0000071a0020480000200200` |
+| Write  | `23 06 0100ffffffff 26`                        |
+| Notify | `23 02 0100 26 ffffff260000450200384c0200ffff` |
+| Write  | `23 06 0200ffffffff 27`                        |
+| Notify | `23 02 0200 27 ffffff270000190020480000200200` |
+| Write  | `23 06 0300ffffffff 28`                        |
+| Notify | `23 02 0300 28 ffffff280000450200384c0200ffff` |
+| Write  | `23 06 0400ffffffff 29`                        |
+| Notify | `23 02 0400 29 ffffff290000190020480000200200` |
+| Write  | `24 01 01 26`                                  |
+| Notify | `24 06 0100ffffffff 27 00ec190020480000200200` |
+| Write  | `24 01 02 27`                                  |
+| Notify | `24 06 0200ffffffff 28 00001a0020480000200200` |
+| Write  | `24 01 03 28`                                  |
+| Notify | `24 06 0300ffffffff 29 00141a0020480000200200` |
+| Write  | `24 01 04 29`                                  |
+| Notify | `24 06 0400ffffffff 2a 00281a0020480000200200` |
+| Write  | `24 01 05 2a`                                  |
+| Notify | `24 06 0500ffffffff 2b 00a1190020480000200200` |
+| Write  | `24 01 06 2b`                                  |
+| Notify | `24 06 0600ffffffff 2c 00b5190020480000200200` |
+| Write  | `41 00 41`                                     |
+| Notify | `41 02 3111 85 00917d0000c9190020480000200200` |
+| Write  | `427b4e` - miscapture (CRC failure)            |
+| Notify | `25 0e 0600ffffffff0274ffffffffffff a5 200200` |
+| Notify | `30 0f 5a0c00ffffffff0271ffffffffffff 0e 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0281ffffffffffff 1e 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0294ffffffffffff 31 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0294ffffffffffff 34 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0286ffffffffffff 26 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0283ffffffffffff 23 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0300ffffffffffff a1 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0f00ffffffff0291ffffffffffff 31 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0285ffffffffffff 22 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0301ffffffffffff 9f 0140` |
+| Write  | `30 00 30`                                     |
+| Notify | `30 0f 5a0c00ffffffff0289ffffffffffff 26 0140` |
+| Write  | `30 00 30`                                     |
+
+The second byte of the 0x30 response seems to be set to 0x0c if the thermometer is set to degrees C, and 0x0f if it is
+set to degrees F. The actual temperature data is still sent in BCD-ish degrees C.
+
+The command 0x20 seems to be sent by the app to toggle the device between degrees C and F. If the one-byte payload is
+0x0c, use degrees C. If 0x0f, use degrees F. I don't know what any other value does.

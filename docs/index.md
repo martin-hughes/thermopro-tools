@@ -57,6 +57,8 @@ The following commands are *partially* understood
 
 * [0x01 - initial setup](./commands/0x01-setup.md). Some kind of setup instruction. This must be sent or the device will
   not send 0x30 notifications
+* [0x20 - set temperature units](./commands/0x20-set-temp-unit.md). Set the temperature units (degrees C or F) displayed
+  on the thermometer.
 * [0x23 - set probe profile](./commands/0x23-set-probe-profile.md). Set probe "profile" (which corresponds to alarm
   temperatures in the app)
 * [0x24 - report probe profile](./commands/0x24-report-probe-profile). Report the probe's temperature profile back to
@@ -81,6 +83,7 @@ The following commands are not really understood yet:
 | Command | Brief description    | Example command               | Example response                               |
 |---------|----------------------|-------------------------------|------------------------------------------------|
 | 0x01    | Setup                | `01 09 7032e2c1799db4d1c7 b1` | `01 01 0a 0c e2c1799db4d1c7b10020c1799db4d1c7` |
+| 0x20    | Set temp units       | `20 01 0c 2d`                 | `20 00 20 2d0000917d0000271a0020480000200200`  | 
 | 0x23    | Set probe profile    | `23 06 040607100000 4a`       | `23 02 0100 26 ffffff260000450200384c0200ffff` | 
 | 0x30    | Send temp reports    | `30 00 30`                    | `30 0f 5a0c00ffffffffffff0325ffffffff c3 0140` |
 | 0x26    | Maybe set mode?      | `26 00 26`                    | `26 05 0c0c5a030f af 0000071a0020480000200200` |

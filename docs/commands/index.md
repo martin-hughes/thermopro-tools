@@ -3,6 +3,7 @@
 These documents contain the detailed description of the commands and responses seen when interacting with the TP25.
 
 * [0x01 - initial setup](./0x01-setup.md)
+* [0x20 - set temp units](./0x20-set-temp-unit.md)
 * [0x23 - set probe profile](./0x23-set-probe-profile.md)
 * [0x30 - send temp report](./0x30-send-temp-report.md)
 * [0x26 - unknown](./0x26-unknown.md)

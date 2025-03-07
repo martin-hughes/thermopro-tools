@@ -21,16 +21,21 @@ No parameters are sent with this command.
 
 ```c
 struct {
-  uint8_t preamble[2];
+  uint8_t unknown;
+  uint8_t temperature_mode;
   uint8_t alarm_status;
   uint16_t temperatures[6];
 }
 ```
 
-### `preamble`:
+### `unknown`:
 
-Not understood. It seems like `preamble[1] == 0x0c` since all traces (including those online) has this set.
-`preamble[0]` does change though.
+Not understood. This value does seem to change in different traces.
+
+### `temperature_mode`:
+
+If `0x0c` is sent, the thermometer is currently displaying degrees C. If `0x0f` is sent, the device is displaying
+degrees F. No other values have been observed.
 
 ### `alarm_status`:
 
