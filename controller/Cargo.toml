@@ -2,6 +2,7 @@
 name = "thermopro"
 version = "0.1.0"
 edition = "2021"
+default-run = "thermopro"
 
 [dependencies]
 btleplug = "0.11.6"
@@ -12,3 +13,13 @@ uuid = { version = "1.11.1", features = ["v4"] }
 log = "0.4.25"
 bytes = "1.9.0"
 bcd-convert = "0.1.0"
+crossterm = "0.28.1"
+ratatui = "0.29.0"
+
+[[bin]]
+name = "thermopro"
+path = "src/main.rs"
+
+[[bin]]
+name = "ui-test"
+path = "src/ui-test.rs"

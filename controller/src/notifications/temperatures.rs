@@ -13,7 +13,7 @@ struct Checksum {
 #[derive(Debug)]
 pub struct Temperatures {
     preamble: [u8; 4],
-    temps: [Option<u16>; 4], // Temperature in tenths of Celsius
+    pub temps: [Option<u16>; 4], // Temperature in tenths of Celsius
     unknown: [u8; 4],
     checksum: Checksum,
     suffix: [u8; 2],

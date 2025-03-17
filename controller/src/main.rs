@@ -3,9 +3,11 @@ mod command;
 mod controller;
 mod convert_commands;
 mod convert_notifications;
+mod device;
 mod notification;
 mod notifications;
 mod peripheral;
+mod ui;
 
 extern crate pretty_env_logger;
 #[macro_use]
@@ -14,16 +16,19 @@ extern crate log;
 use crate::controller::controller;
 use crate::convert_commands::convert_commands;
 use crate::convert_notifications::convert_notifications;
+use crate::device::Device;
 use crate::peripheral::{
     get_write_characteristic, has_required_characteristics, is_relevant_name,
     subscribe_to_notifications,
 };
+
+use crate::ui::draw_ui;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use std::error::Error;
 use std::io;
 use std::io::Write;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::channel;
 use tokio::task::JoinSet;
 use tokio::time;
@@ -122,11 +127,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let (controller_in_tx, controller_in_rx) = channel(CHANNEL_SIZE);
     let (controller_out_tx, controller_out_rx) = channel(CHANNEL_SIZE);
     let (command_tx, mut command_rx) = channel(CHANNEL_SIZE);
+    let (update_tx, mut update_rx) = channel(CHANNEL_SIZE);
 
     let mut tasks = JoinSet::new();
+    let controller_device = Device::new();
 
     let _ = tasks.spawn(convert_notifications(notification_rx, controller_in_tx));
-    let _ = tasks.spawn(controller(controller_in_rx, controller_out_tx));
+    let _ = tasks.spawn(controller(
+        controller_device.clone(),
+        controller_in_rx,
+        controller_out_tx,
+        update_tx,
+    ));
     let _ = tasks.spawn(convert_commands(controller_out_rx, command_tx));
 
     // Receiving from the bluetooth peripheral
@@ -144,7 +156,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Sending to the bluetooth peripheral
     let _ = tasks.spawn(async move {
         while let Some(data) = command_rx.recv().await {
-            println!("Write {:x}", data);
+            // TODO: Add command info queue to UI
+            //println!("Write {:x}", data);
             if (device
                 .write(
                     &device_writer,
@@ -159,8 +172,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
+    // Draw a UI and update as needed
+    let _ = tasks.spawn(async move {
+        let mut terminal = ratatui::init();
+        let d = controller_device;
+        let start = Instant::now();
+
+        while (update_rx.recv().await).is_some() {
+            draw_ui(
+                &mut terminal,
+                d.get_state(),
+                start.elapsed().as_millis() % 1500 > 750,
+            );
+        }
+    });
+
     // If any task fails, bail out.
     tasks.join_next().await;
+    ratatui::restore();
 
     // TODO: Probably always sending `Ok` isn't the best response...
     Ok(())

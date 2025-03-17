@@ -2,3 +2,4 @@
 resolver = "2"
 
 members = ["tlv-check", "controller"]
+default-members = ["controller"]

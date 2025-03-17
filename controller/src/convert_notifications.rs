@@ -5,7 +5,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 pub async fn convert_notifications(mut incoming: Receiver<Bytes>, outgoing: Sender<Notification>) {
     loop {
         let n = incoming.recv().await.unwrap();
-        println!("Raw notification: {:x}", n);
+        //println!("Raw notification: {:x}", n);
         outgoing
             .send(Notification::try_from(n).unwrap())
             .await

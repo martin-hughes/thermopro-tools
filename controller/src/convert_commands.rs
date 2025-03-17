@@ -6,7 +6,7 @@ pub async fn convert_commands(mut incoming: Receiver<Command>, outgoing: Sender<
     loop {
         let cmd = incoming.recv().await.unwrap();
         let bytes = Bytes::try_from(cmd).unwrap();
-        println!("Raw command: {:x}", bytes);
+        //println!("Raw command: {:x}", bytes);
         outgoing.send(bytes).await.unwrap();
     }
 }
