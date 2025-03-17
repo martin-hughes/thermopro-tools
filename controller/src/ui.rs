@@ -1,16 +1,14 @@
 use crate::device::AlarmState::Alarm;
-use crate::device::{AlarmThreshold, Device, DeviceConnectedState, DeviceState, Probe};
-//use crossterm::style::Stylize;
+use crate::device::{AlarmThreshold, DeviceConnectedState, DeviceState, Probe};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::text::Span;
 use ratatui::widgets::Padding;
 use ratatui::{
-    buffer::Buffer,
     layout::Rect,
     style::Stylize,
     symbols::border,
     text::Line,
-    widgets::{Block, Paragraph, Widget},
+    widgets::{Block, Paragraph},
     DefaultTerminal, Frame,
 };
 
@@ -25,9 +23,9 @@ fn draw(frame: &mut Frame, state: &DeviceState, pulse_on: bool) {
     let title = Line::from(" ThermoPro TP25 ".bold());
     let block = Block::bordered().title(title.centered());
 
-    let chunks = Layout::vertical([
+    let vert_chunks = Layout::vertical([
         Constraint::Length(5),
-        Constraint::Length(5),
+        Constraint::Length(6),
         Constraint::Min(0),
     ])
     .margin(1)
@@ -35,11 +33,18 @@ fn draw(frame: &mut Frame, state: &DeviceState, pulse_on: bool) {
 
     frame.render_widget(block, area);
 
-    render_status(state, pulse_on, frame, chunks[0]);
+    render_status(state, pulse_on, frame, vert_chunks[0]);
+
+    let horz_chunks =
+        Layout::horizontal([Constraint::Length(61), Constraint::Min(0)]).split(vert_chunks[2]);
 
     match state {
         DeviceState::NotConnected => (),
-        DeviceState::Connected(state) => render_probes(state, pulse_on, frame, chunks[1]),
+        DeviceState::Connected(state) => {
+            render_probes(state, pulse_on, frame, vert_chunks[1]);
+            render_command_log(frame, horz_chunks[0]);
+            render_keybindings(frame, horz_chunks[1]);
+        }
     }
 }
 
@@ -103,6 +108,48 @@ fn render_probes(state: &DeviceConnectedState, pulse_on: bool, frame: &mut Frame
     }
 }
 
+fn render_command_log(frame: &mut Frame, area: Rect) {
+    let title_line = Line::from("Command log");
+    let block = Block::bordered().title(title_line.left_aligned());
+
+    let command_lines = [
+        "C 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+    ]
+    .iter()
+    .map(|s| Line::from(*s))
+    .collect::<Vec<Line>>();
+
+    frame.render_widget(Paragraph::new(command_lines).block(block), area);
+}
+
+fn render_keybindings(frame: &mut Frame, area: Rect) {
+    let title_line = Line::from("Key bindings");
+    let block = Block::bordered().title(title_line.left_aligned());
+
+    let lines: Vec<Line> = ["Quit: Q", "Toggle C / F: C"]
+        .iter()
+        .map(|s| Line::from(s.to_string()))
+        .collect();
+
+    frame.render_widget(Paragraph::new(lines).block(block), area);
+}
+
 fn render_probe(
     frame: &mut Frame,
     area: Rect,
@@ -111,7 +158,7 @@ fn render_probe(
     pulse_on: bool,
     celsius: bool,
 ) {
-    let alarm_state = if let Alarm = probe.alarm { true } else { false };
+    let alarm_state = matches!(probe.alarm, Alarm);
     let bold = pulse_on && alarm_state;
 
     let mut title_str = " Probe: ".to_string();
@@ -180,14 +227,22 @@ fn alarm_threshold_lines(probe: &Probe, celsius: bool) -> Vec<Line> {
     match probe.alarm_threshold {
         AlarmThreshold::Unknown => pieces.push("Threshold unknown".into()),
         AlarmThreshold::NoneSet => pieces.push("No threshold set".into()),
-        AlarmThreshold::UpperLimit(max) => pieces.push(alarm_upper_threshold_line(max, celsius)),
-        AlarmThreshold::RangeLimit(max, min) => {
-            pieces.push(alarm_upper_threshold_line(max, celsius));
-            pieces.push(alarm_lower_threshold_line(min, celsius));
+        AlarmThreshold::UpperLimit(ult) => {
+            pieces.push(alarm_upper_threshold_line(ult.max, celsius));
+            pieces.push(alarm_index_line(ult.idx));
+        }
+        AlarmThreshold::RangeLimit(rlt) => {
+            pieces.push(alarm_upper_threshold_line(rlt.max, celsius));
+            pieces.push(alarm_lower_threshold_line(rlt.min, celsius));
+            pieces.push(alarm_index_line(rlt.idx));
         }
     };
 
     pieces
+}
+
+fn alarm_index_line<'a>(l: u16) -> Line<'a> {
+    Line::from(vec!["Thresholds index: ".dim(), l.to_string().dim()])
 }
 
 fn alarm_upper_threshold_line<'a>(l: u16, celsius: bool) -> Line<'a> {

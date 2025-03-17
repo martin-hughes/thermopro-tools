@@ -3,8 +3,11 @@ mod notification;
 mod notifications;
 mod ui;
 
-use crate::device::DeviceState::{Connected, NotConnected};
-use crate::device::{AlarmState, AlarmThreshold, Device, DeviceConnectedState, DeviceState};
+use crate::device::DeviceState::Connected;
+use crate::device::{
+    AlarmState, AlarmThreshold, Device, DeviceConnectedState, DeviceState, RangeLimitThreshold,
+    UpperLimitThreshold,
+};
 use crate::ui::draw_ui;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -89,10 +92,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     dcs.probes[0].alarm_threshold = AlarmThreshold::Unknown;
     dcs.probes[1].temperature = Some(238);
     dcs.probes[1].alarm = AlarmState::Alarm;
-    dcs.probes[1].alarm_threshold = AlarmThreshold::RangeLimit(200, 2999);
+    dcs.probes[1].alarm_threshold = AlarmThreshold::RangeLimit(RangeLimitThreshold {
+        idx: 2,
+        min: 200,
+        max: 2999,
+    });
     dcs.probes[2].temperature = Some(2999);
     dcs.probes[2].alarm_threshold = AlarmThreshold::NoneSet;
-    dcs.probes[3].alarm_threshold = AlarmThreshold::UpperLimit(300);
+    dcs.probes[3].alarm_threshold =
+        AlarmThreshold::UpperLimit(UpperLimitThreshold { idx: 5, max: 300 });
     dcs.celsius = true;
 
     let d = Connected(dcs);

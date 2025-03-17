@@ -11,11 +11,24 @@ pub enum AlarmState {
 }
 
 #[derive(Clone, Copy)]
+pub struct UpperLimitThreshold {
+    pub idx: u16,
+    pub max: u16,
+}
+
+#[derive(Clone, Copy)]
+pub struct RangeLimitThreshold {
+    pub idx: u16,
+    pub min: u16,
+    pub max: u16,
+}
+
+#[derive(Clone, Copy)]
 pub enum AlarmThreshold {
     Unknown,
     NoneSet,
-    UpperLimit(u16),
-    RangeLimit(u16, u16),
+    UpperLimit(UpperLimitThreshold),
+    RangeLimit(RangeLimitThreshold),
 }
 
 #[derive(Clone, Copy)]
@@ -58,13 +71,9 @@ impl Default for DeviceConnectedState {
 
 impl DeviceConnectedState {
     pub fn has_alarm(&self) -> bool {
-        self.probes.iter().any(|p| {
-            if let AlarmState::Alarm = p.alarm {
-                true
-            } else {
-                false
-            }
-        })
+        self.probes
+            .iter()
+            .any(|p| matches!(p.alarm, AlarmState::Alarm))
     }
 }
 
