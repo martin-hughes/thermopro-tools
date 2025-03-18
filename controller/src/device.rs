@@ -1,5 +1,6 @@
-use crate::device::DeviceState::Connected;
+use crate::device::DeviceState::{Connected, NotConnected};
 use crate::notification::Notification;
+use crate::notifications::temperatures::TempUnit;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
@@ -90,28 +91,37 @@ impl Device {
     }
 
     pub fn handle_notification(&self, notification: Notification) -> bool {
-        let mut updated = false;
+        let l = &mut self.state.lock().unwrap();
+        match l.deref_mut() {
+            Connected(ref mut state) => self.handle_notification_is_connected(notification, state),
+            NotConnected => {
+                panic!("Received notification in not connected state")
+            }
+        }
+    }
+
+    fn handle_notification_is_connected(
+        &self,
+        notification: Notification,
+        state: &mut DeviceConnectedState,
+    ) -> bool {
         match notification {
-            Notification::ConnectResponse => {}
+            Notification::ConnectResponse => false,
             Notification::Temperatures(temps) => {
-                let ref mut l = self.state.lock().unwrap();
-                match l.deref_mut() {
-                    Connected(ref mut state) => {
-                        for i in 0..4 {
-                            state.probes[i].temperature = temps.temps[i];
-                        }
-                    }
-                    DeviceState::NotConnected => {
-                        panic!("Received notification in not connected state")
-                    }
+                for i in 0..4 {
+                    state.celsius = matches!(temps.celsius, TempUnit::Celsius);
+                    state.probes[i].temperature = temps.temps[i];
+                    state.probes[i].alarm = if (temps.alarms & (1 << i)) != 0 {
+                        AlarmState::Alarm
+                    } else {
+                        AlarmState::NoAlarm
+                    };
                 }
 
-                updated = true;
+                true
             }
-            Notification::TwoSixResponse => {}
+            Notification::TwoSixResponse => false,
         }
-
-        updated
     }
 
     pub fn get_state(&self) -> DeviceState {

@@ -1,19 +1,19 @@
 use futures::StreamExt;
 mod command;
-mod controller;
 mod convert_commands;
 mod convert_notifications;
 mod device;
+mod generate_commands;
 mod notification;
 mod notifications;
 mod peripheral;
+mod receive_notifications;
 mod ui;
 
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use crate::controller::controller;
 use crate::convert_commands::convert_commands;
 use crate::convert_notifications::convert_notifications;
 use crate::device::Device;
@@ -21,7 +21,9 @@ use crate::peripheral::{
     get_write_characteristic, has_required_characteristics, is_relevant_name,
     subscribe_to_notifications,
 };
+use crate::receive_notifications::receive_notifications;
 
+use crate::generate_commands::Commander;
 use crate::ui::draw_ui;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
@@ -111,17 +113,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let device = find_device(adapter_list).await;
-    //run_for_device(device).await?;
 
     let mut notifications = subscribe_to_notifications(&device).await?.unwrap();
     let device_writer = get_write_characteristic(&device).await?;
 
-    // The gist of all these channels and async tasks is to form a pipeline:
+    // The gist of all these channels and async tasks is to form two simple pipelines:
     // Bluetooth peripheral sends Bytes,
     // Bytes are converted to Notification,
-    // `controller` receives Notifications, and sends out Commands as needed,
+    // `receive_notifications` updates the state.
+    //
+    // `commander` receives requests (usually via the UI), and sends out Commands as needed,
     // Commands are converted to Bytes,
     // Bytes sent back to peripheral.
+
     const CHANNEL_SIZE: usize = 10;
     let (notification_tx, notification_rx) = channel(CHANNEL_SIZE);
     let (controller_in_tx, controller_in_rx) = channel(CHANNEL_SIZE);
@@ -133,10 +137,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let controller_device = Device::new();
 
     let _ = tasks.spawn(convert_notifications(notification_rx, controller_in_tx));
-    let _ = tasks.spawn(controller(
+    let _ = tasks.spawn(receive_notifications(
         controller_device.clone(),
         controller_in_rx,
-        controller_out_tx,
         update_tx,
     ));
     let _ = tasks.spawn(convert_commands(controller_out_rx, command_tx));
@@ -171,6 +174,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             };
         }
     });
+
+    let commander = Commander::new(controller_out_tx);
+    commander.startup().await;
 
     // Draw a UI and update as needed
     let _ = tasks.spawn(async move {

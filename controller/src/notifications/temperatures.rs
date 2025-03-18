@@ -6,21 +6,58 @@ use std::convert::TryFrom;
 
 #[derive(Debug)]
 struct Checksum {
+    #[allow(unused)]
     value: u8,
+    #[allow(unused)]
     valid: bool,
 }
 
 #[derive(Debug)]
+pub enum TempUnit {
+    Celsius,
+    Fahrenheit,
+    Unknown,
+}
+
+#[derive(Debug)]
 pub struct Temperatures {
-    preamble: [u8; 4],
+    #[allow(unused)]
+    length: u8,
+    #[allow(unused)]
+    unknown_a: u8,
+    pub celsius: TempUnit,
+    pub alarms: u8,
     pub temps: [Option<u16>; 4], // Temperature in tenths of Celsius
-    unknown: [u8; 4],
+    #[allow(unused)]
+    unknown_b: [u8; 4],
     checksum: Checksum,
+    #[allow(unused)]
     suffix: [u8; 2],
 }
 
-const PREAMBLE: [u8; 4] = [0x0f, 0x5a, 0x0c, 0x00];
-const UNKNOWN: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+impl Default for Temperatures {
+    fn default() -> Self {
+        Temperatures {
+            length: LENGTH,
+            unknown_a: UNKNOWN_A,
+            celsius: TempUnit::Unknown,
+            alarms: 0,
+            temps: [None; 4],
+            unknown_b: UNKNOWN_B,
+            checksum: Checksum {
+                value: 0,
+                valid: false,
+            },
+            suffix: SUFFIX,
+        }
+    }
+}
+
+const LENGTH: u8 = 0x0f;
+
+const UNKNOWN_A: u8 = 0x5a;
+
+const UNKNOWN_B: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
 const SUFFIX: [u8; 2] = [0x01, 0x40];
 
 fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
@@ -36,7 +73,7 @@ fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
     }
 }
 
-fn calc_checksum(bytes: &Vec<u8>) -> u8 {
+fn calc_checksum(bytes: &[u8]) -> u8 {
     #[allow(arithmetic_overflow)]
     let sum: u64 = bytes[0..bytes.len()].iter().map(|x| *x as u64).sum();
     (sum % 256) as u8
@@ -45,7 +82,10 @@ fn calc_checksum(bytes: &Vec<u8>) -> u8 {
 impl TryFrom<Bytes> for Temperatures {
     type Error = &'static str;
     fn try_from(val: Bytes) -> Result<Self, Self::Error> {
-        if (val[1..5] != PREAMBLE) || (val[18..] != SUFFIX) || (val[13..17] != UNKNOWN) {
+        if val[1] != LENGTH {
+            return Err("Invalid length");
+        }
+        if (val[2] != UNKNOWN_A) || (val[18..] != SUFFIX) || (val[13..17] != UNKNOWN_B) {
             return Err("Invalid constant parts");
         }
 
@@ -53,14 +93,17 @@ impl TryFrom<Bytes> for Temperatures {
         let checksum_val = calc_checksum(&data_part);
 
         let mut t = Temperatures {
-            preamble: PREAMBLE,
-            temps: [Some(0); 4],
-            unknown: UNKNOWN,
+            celsius: match val[3] {
+                0x0c => TempUnit::Celsius,
+                0x0f => TempUnit::Fahrenheit,
+                _ => TempUnit::Unknown,
+            },
+            alarms: val[4],
             checksum: Checksum {
                 value: checksum_val,
                 valid: checksum_val == val[17],
             },
-            suffix: SUFFIX,
+            ..Default::default()
         };
 
         for i in 0..4 {
