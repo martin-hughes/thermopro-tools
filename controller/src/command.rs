@@ -1,5 +1,5 @@
 use crate::commands::set_temp_unit::generate;
-use crate::device_types::TempMode;
+use crate::device::TempMode;
 use bytes::Bytes;
 
 const CONNECT_CMD: [u8; 12] = [

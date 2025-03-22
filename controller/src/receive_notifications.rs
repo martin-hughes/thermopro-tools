@@ -1,4 +1,3 @@
-use crate::command::Command;
 use crate::device::Device;
 use crate::notification::Notification;
 use tokio::sync::mpsc::{Receiver, Sender};

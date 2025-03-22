@@ -1,8 +1,13 @@
 use crate::device::DeviceState::{Connected, NotConnected};
-use crate::device_types::TempMode;
 use crate::notification::Notification;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug)]
+pub enum TempMode {
+    Celsius,
+    Fahrenheit,
+}
 
 #[derive(Clone, Copy)]
 pub enum AlarmState {
@@ -129,6 +134,7 @@ impl Device {
         self.state.lock().unwrap().clone()
     }
 
+    #[allow(unused)]
     pub fn set_state(&self, state: DeviceState) {
         *self.state.lock().unwrap() = state;
     }

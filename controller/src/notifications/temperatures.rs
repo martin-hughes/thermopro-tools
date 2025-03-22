@@ -1,4 +1,4 @@
-use crate::device_types::TempMode;
+use crate::device::TempMode;
 use bcd_convert::BcdNumber;
 use bytes::Bytes;
 use std::convert::TryFrom;

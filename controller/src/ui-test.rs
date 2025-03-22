@@ -1,5 +1,4 @@
 mod device;
-mod device_types;
 mod notification;
 mod notifications;
 mod transfer_log;

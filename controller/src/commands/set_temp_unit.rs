@@ -1,4 +1,4 @@
-use crate::device_types::TempMode;
+use crate::device::TempMode;
 use bytes::Bytes;
 
 const SET_CELSIUS_COMMAND: [u8; 4] = [0x20, 0x01, 0x0c, 0x2d];

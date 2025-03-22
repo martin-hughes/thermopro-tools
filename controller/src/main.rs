@@ -4,7 +4,6 @@ mod commands;
 mod convert_commands;
 mod convert_notifications;
 mod device;
-mod device_types;
 mod generate_commands;
 mod notification;
 mod notifications;
@@ -28,7 +27,7 @@ use crate::peripheral::{
 use crate::receive_notifications::receive_notifications;
 
 use crate::device::DeviceState::Connected;
-use crate::device_types::TempMode;
+use crate::device::TempMode;
 use crate::generate_commands::Commander;
 use crate::transfer_log::{TransferLog, TransferType};
 use crate::ui::draw_ui;
@@ -200,7 +199,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _ = tasks.spawn(async move {
         let mut reader = EventStream::new();
         loop {
-            let mut maybe_event = reader.next().await;
+            let maybe_event = reader.next().await;
             match maybe_event {
                 None => return,
                 Some(Ok(event)) => {

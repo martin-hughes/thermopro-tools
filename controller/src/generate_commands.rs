@@ -1,5 +1,5 @@
 use crate::command::Command;
-use crate::device_types::TempMode;
+use crate::device::TempMode;
 use tokio::sync::mpsc::Sender;
 
 pub struct Commander {
