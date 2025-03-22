@@ -1,8 +1,10 @@
 mod device;
+mod device_types;
 mod notification;
 mod notifications;
 mod transfer_log;
 mod ui;
+mod ui_state;
 
 use crate::device::DeviceState::Connected;
 use crate::device::{
@@ -11,8 +13,8 @@ use crate::device::{
 };
 use crate::transfer_log::{TransferLog, TransferType};
 use crate::ui::draw_ui;
+use crate::ui_state::{UiCommands, UiState};
 use bytes::Bytes;
-use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crossterm::{
     event, execute,
@@ -27,7 +29,7 @@ use std::time::{Duration, Instant};
 struct State {
     device: Device,
     transfers: TransferLog,
-    quit: bool,
+    ui_state: UiState,
 }
 
 impl State {
@@ -35,7 +37,7 @@ impl State {
         State {
             device: Device::new(),
             transfers: TransferLog::new(),
-            quit: false,
+            ui_state: UiState::default(),
         }
     }
 }
@@ -56,24 +58,13 @@ pub fn restore_tui() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn handle_keyboard(state: &mut State) -> Result<(), Box<dyn Error>> {
+fn handle_keyboard(state: &mut UiState) -> Result<Option<UiCommands>, Box<dyn Error>> {
     let timeout = Duration::from_secs_f64(1.0 / 50.0);
     if !event::poll(timeout)? {
-        return Ok(());
+        return Ok(None);
     }
-    match event::read()? {
-        Event::Key(key) if key.kind == KeyEventKind::Press => handle_key_press(state, key),
-        _ => {}
-    }
-    Ok(())
-}
-
-fn handle_key_press(state: &mut State, key: KeyEvent) {
-    match key.code {
-        KeyCode::Char('q') | KeyCode::Esc => state.quit = true,
-        KeyCode::Char('c') => toggle_celsius(state),
-        _ => {}
-    };
+    let e = event::read()?;
+    Ok(state.handle_event(e))
 }
 
 fn toggle_celsius(state: &mut State) {
@@ -132,14 +123,23 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let start = Instant::now();
 
-    while !state.quit {
+    loop {
         draw_ui(
             &mut terminal,
             state.device.get_state(),
             state.transfers.get_transfers(),
             start.elapsed().as_millis() % 1500 > 750,
         );
-        handle_keyboard(&mut state)?
+        if let Some(cmd) = handle_keyboard(&mut state.ui_state)? {
+            match cmd {
+                UiCommands::ToggleCelsius => {
+                    toggle_celsius(&mut state);
+                }
+                UiCommands::Quit => {
+                    break;
+                }
+            }
+        }
     }
 
     restore_tui()?;

@@ -1,8 +1,10 @@
 use futures::StreamExt;
 mod command;
+mod commands;
 mod convert_commands;
 mod convert_notifications;
 mod device;
+mod device_types;
 mod generate_commands;
 mod notification;
 mod notifications;
@@ -10,6 +12,7 @@ mod peripheral;
 mod receive_notifications;
 mod transfer_log;
 mod ui;
+mod ui_state;
 
 extern crate pretty_env_logger;
 #[macro_use]
@@ -24,17 +27,23 @@ use crate::peripheral::{
 };
 use crate::receive_notifications::receive_notifications;
 
+use crate::device::DeviceState::Connected;
+use crate::device_types::TempMode;
 use crate::generate_commands::Commander;
 use crate::transfer_log::{TransferLog, TransferType};
 use crate::ui::draw_ui;
+use crate::ui_state::{UiCommands, UiState};
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use bytes::Bytes;
+use crossterm::event::EventStream;
 use std::error::Error;
 use std::io;
 use std::io::Write;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::channel;
+use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time;
 use tokio::time::timeout;
@@ -139,6 +148,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut tasks = JoinSet::new();
     let controller_device = Device::new();
     let transfers = TransferLog::new();
+    let ui_state = Arc::new(Mutex::new(UiState::default()));
 
     let _ = tasks.spawn(convert_notifications(notification_rx, controller_in_tx));
     let _ = tasks.spawn(receive_notifications(
@@ -184,6 +194,36 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let commander = Commander::new(controller_out_tx);
     commander.startup().await;
+
+    let keyboard_ui_state = ui_state.clone();
+    let keyboard_device = controller_device.clone();
+    let _ = tasks.spawn(async move {
+        let mut reader = EventStream::new();
+        loop {
+            let mut maybe_event = reader.next().await;
+            match maybe_event {
+                None => return,
+                Some(Ok(event)) => {
+                    if let Some(cmd) = keyboard_ui_state.lock().await.handle_event(event) {
+                        match cmd {
+                            UiCommands::Quit => return,
+                            UiCommands::ToggleCelsius => {
+                                if let Connected(dcs) = keyboard_device.get_state() {
+                                    let new_mode = if dcs.celsius {
+                                        TempMode::Fahrenheit
+                                    } else {
+                                        TempMode::Celsius
+                                    };
+                                    commander.set_temp_mode(new_mode).await;
+                                }
+                            }
+                        }
+                    }
+                }
+                Some(Err(_)) => return,
+            }
+        }
+    });
 
     // Draw a UI and update as needed
     let _ = tasks.spawn(async move {

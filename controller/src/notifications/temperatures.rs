@@ -1,3 +1,4 @@
+use crate::device_types::TempMode;
 use bcd_convert::BcdNumber;
 use bytes::Bytes;
 use std::convert::TryFrom;
@@ -13,19 +14,12 @@ struct Checksum {
 }
 
 #[derive(Debug)]
-pub enum TempUnit {
-    Celsius,
-    Fahrenheit,
-    Unknown,
-}
-
-#[derive(Debug)]
 pub struct Temperatures {
     #[allow(unused)]
     length: u8,
     #[allow(unused)]
     unknown_a: u8,
-    pub celsius: TempUnit,
+    pub celsius: Option<TempMode>,
     pub alarms: u8,
     pub temps: [Option<u16>; 4], // Temperature in tenths of Celsius
     #[allow(unused)]
@@ -40,7 +34,7 @@ impl Default for Temperatures {
         Temperatures {
             length: LENGTH,
             unknown_a: UNKNOWN_A,
-            celsius: TempUnit::Unknown,
+            celsius: None,
             alarms: 0,
             temps: [None; 4],
             unknown_b: UNKNOWN_B,
@@ -94,9 +88,9 @@ impl TryFrom<Bytes> for Temperatures {
 
         let mut t = Temperatures {
             celsius: match val[3] {
-                0x0c => TempUnit::Celsius,
-                0x0f => TempUnit::Fahrenheit,
-                _ => TempUnit::Unknown,
+                0x0c => Some(TempMode::Celsius),
+                0x0f => Some(TempMode::Fahrenheit),
+                _ => None,
             },
             alarms: val[4],
             checksum: Checksum {
