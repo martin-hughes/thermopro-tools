@@ -1,5 +1,6 @@
 use crate::device::AlarmState::Alarm;
 use crate::device::{AlarmThreshold, DeviceConnectedState, DeviceState, Probe};
+use crate::transfer_log::{DeviceTransfer, TransferType};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::text::Span;
 use ratatui::widgets::Padding;
@@ -12,13 +13,23 @@ use ratatui::{
     DefaultTerminal, Frame,
 };
 
-pub fn draw_ui(terminal: &mut DefaultTerminal, state: DeviceState, pulse_on: bool) {
+pub fn draw_ui(
+    terminal: &mut DefaultTerminal,
+    state: DeviceState,
+    device_transfers: Vec<DeviceTransfer>,
+    pulse_on: bool,
+) {
     terminal
-        .draw(|frame| draw(frame, &state, pulse_on))
+        .draw(|frame| draw(frame, &state, device_transfers, pulse_on))
         .unwrap();
 }
 
-fn draw(frame: &mut Frame, state: &DeviceState, pulse_on: bool) {
+fn draw(
+    frame: &mut Frame,
+    state: &DeviceState,
+    device_transfers: Vec<DeviceTransfer>,
+    pulse_on: bool,
+) {
     let area = frame.area();
     let title = Line::from(" ThermoPro TP25 ".bold());
     let block = Block::bordered().title(title.centered());
@@ -36,13 +47,13 @@ fn draw(frame: &mut Frame, state: &DeviceState, pulse_on: bool) {
     render_status(state, pulse_on, frame, vert_chunks[0]);
 
     let horz_chunks =
-        Layout::horizontal([Constraint::Length(61), Constraint::Min(0)]).split(vert_chunks[2]);
+        Layout::horizontal([Constraint::Length(64), Constraint::Min(0)]).split(vert_chunks[2]);
 
     match state {
         DeviceState::NotConnected => (),
         DeviceState::Connected(state) => {
             render_probes(state, pulse_on, frame, vert_chunks[1]);
-            render_command_log(frame, horz_chunks[0]);
+            render_command_log(device_transfers, frame, horz_chunks[0]);
             render_keybindings(frame, horz_chunks[1]);
         }
     }
@@ -108,34 +119,38 @@ fn render_probes(state: &DeviceConnectedState, pulse_on: bool, frame: &mut Frame
     }
 }
 
-fn render_command_log(frame: &mut Frame, area: Rect) {
+fn render_command_log(device_transfers: Vec<DeviceTransfer>, frame: &mut Frame, area: Rect) {
+    const MAX_DISPLAYED: usize = 30;
+
     let title_line = Line::from("Command log");
     let block = Block::bordered().title(title_line.left_aligned());
 
-    let command_lines = [
-        "C 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 20",
-        "1",
-        "2",
-        "3",
-        "4",
-        "5",
-        "6",
-        "7",
-        "8",
-        "9",
-        "10",
-        "11",
-        "12",
-        "13",
-        "14",
-        "15",
-        "16",
-    ]
-    .iter()
-    .map(|s| Line::from(*s))
-    .collect::<Vec<Line>>();
+    let iter = device_transfers.iter().rev();
+    let mut count = 0;
 
-    frame.render_widget(Paragraph::new(command_lines).block(block), area);
+    let mut lines = Vec::new();
+    for t in iter {
+        count += 1;
+        if count == MAX_DISPLAYED + 1 {
+            lines.push("Too many transfers (max 30 displayed)".into());
+            break;
+        } else {
+            let mut l = String::new();
+            if matches!(t.transfer_type, TransferType::Command) {
+                l.push('C');
+            } else {
+                l.push('N');
+            }
+            l.push(' ');
+
+            for s in t.bytes.iter().map(|b| format!("{:02x} ", b)) {
+                l.push_str(&s);
+            }
+            lines.push(l.into());
+        }
+    }
+
+    frame.render_widget(Paragraph::new(lines).block(block), area);
 }
 
 fn render_keybindings(frame: &mut Frame, area: Rect) {

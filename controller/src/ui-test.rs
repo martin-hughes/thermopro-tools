@@ -1,6 +1,7 @@
 mod device;
 mod notification;
 mod notifications;
+mod transfer_log;
 mod ui;
 
 use crate::device::DeviceState::Connected;
@@ -8,13 +9,16 @@ use crate::device::{
     AlarmState, AlarmThreshold, Device, DeviceConnectedState, DeviceState, RangeLimitThreshold,
     UpperLimitThreshold,
 };
+use crate::transfer_log::{TransferLog, TransferType};
 use crate::ui::draw_ui;
+use bytes::Bytes;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crossterm::{
     event, execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
+use rand::Rng;
 use std::error::Error;
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
@@ -22,6 +26,7 @@ use std::time::{Duration, Instant};
 
 struct State {
     device: Device,
+    transfers: TransferLog,
     quit: bool,
 }
 
@@ -29,6 +34,7 @@ impl State {
     fn new() -> State {
         State {
             device: Device::new(),
+            transfers: TransferLog::new(),
             quit: false,
         }
     }
@@ -103,6 +109,23 @@ fn main() -> Result<(), Box<dyn Error>> {
         AlarmThreshold::UpperLimit(UpperLimitThreshold { idx: 5, max: 300 });
     dcs.celsius = true;
 
+    for i in 0..35 {
+        // I feel like this is probably not very neat, because it took ChatGPT three attempts to
+        // write it! Probably ought to do some digging into random numbers...
+        let mut random_bytes = vec![0u8; 20];
+        rand::rng().fill(&mut random_bytes[..]);
+        let random_bytes = Bytes::from(random_bytes);
+
+        state.transfers.push_transfer(
+            if i % 2 == 0 {
+                TransferType::Command
+            } else {
+                TransferType::Notification
+            },
+            random_bytes,
+        );
+    }
+
     let d = Connected(dcs);
 
     state.device.set_state(d);
@@ -113,6 +136,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         draw_ui(
             &mut terminal,
             state.device.get_state(),
+            state.transfers.get_transfers(),
             start.elapsed().as_millis() % 1500 > 750,
         );
         handle_keyboard(&mut state)?

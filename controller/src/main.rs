@@ -8,6 +8,7 @@ mod notification;
 mod notifications;
 mod peripheral;
 mod receive_notifications;
+mod transfer_log;
 mod ui;
 
 extern crate pretty_env_logger;
@@ -24,9 +25,11 @@ use crate::peripheral::{
 use crate::receive_notifications::receive_notifications;
 
 use crate::generate_commands::Commander;
+use crate::transfer_log::{TransferLog, TransferType};
 use crate::ui::draw_ui;
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
+use bytes::Bytes;
 use std::error::Error;
 use std::io;
 use std::io::Write;
@@ -135,6 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut tasks = JoinSet::new();
     let controller_device = Device::new();
+    let transfers = TransferLog::new();
 
     let _ = tasks.spawn(convert_notifications(notification_rx, controller_in_tx));
     let _ = tasks.spawn(receive_notifications(
@@ -145,29 +149,32 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let _ = tasks.spawn(convert_commands(controller_out_rx, command_tx));
 
     // Receiving from the bluetooth peripheral
+    let transfers_a = transfers.clone();
     let _ = tasks.spawn(async move {
         while let Some(data) = timeout(Duration::from_secs(4), notifications.next())
             .await
             .unwrap()
         {
-            if (notification_tx.send(data.value.into()).await).is_err() {
+            let d: Bytes = data.value.into();
+            transfers_a.push_transfer(TransferType::Notification, d.clone());
+            if (notification_tx.send(d).await).is_err() {
                 return;
             };
         }
     });
 
     // Sending to the bluetooth peripheral
+    let transfers_b = transfers.clone();
     let _ = tasks.spawn(async move {
         while let Some(data) = command_rx.recv().await {
-            // TODO: Add command info queue to UI
-            //println!("Write {:x}", data);
-            if (device
+            transfers_b.push_transfer(TransferType::Command, data.clone());
+            if device
                 .write(
                     &device_writer,
                     data.iter().as_slice(),
                     WriteType::WithoutResponse,
                 )
-                .await)
+                .await
                 .is_err()
             {
                 return;
@@ -188,6 +195,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             draw_ui(
                 &mut terminal,
                 d.get_state(),
+                transfers.get_transfers(),
                 start.elapsed().as_millis() % 1500 > 750,
             );
         }
