@@ -1,6 +1,7 @@
+mod checksum;
 mod device;
 mod notification;
-mod notifications;
+mod transfer;
 mod transfer_log;
 mod ui;
 mod ui_state;

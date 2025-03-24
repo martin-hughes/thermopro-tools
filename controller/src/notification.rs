@@ -1,23 +1,65 @@
-use crate::notifications::temperatures::Temperatures;
-use bytes::Bytes;
+pub mod content;
+pub mod temperatures;
 
-#[derive(Debug)]
-pub enum Notification {
-    ConnectResponse,
-    SetTempUnit,
-    Temperatures(Temperatures),
-    TwoSixResponse,
+use bytes::Bytes;
+use content::NotificationContent;
+use crate::notification::content::NotificationTryFromErr;
+use crate::notification::Status::{InvalidContent, InvalidLength, InvalidType};
+use crate::transfer::RawTransfer;
+
+pub enum Status {
+    Ok,
+    InvalidType,
+    InvalidLength,
+    InvalidChecksum,
+    InvalidContent(&'static str),
+}
+
+impl From<NotificationTryFromErr> for Status {
+    fn from(value: NotificationTryFromErr) -> Self {
+        match value {
+            NotificationTryFromErr::UnknownType => InvalidType,
+            NotificationTryFromErr::WrongLength => InvalidLength,
+            NotificationTryFromErr::FieldError(s) => InvalidContent(s),
+        }
+    }
+}
+
+pub struct Notification {
+    pub raw_notification: RawTransfer,
+    pub content: Option<NotificationContent>,
+    pub status: Status,
 }
 
 impl TryFrom<Bytes> for Notification {
     type Error = &'static str;
+
     fn try_from(value: Bytes) -> Result<Self, Self::Error> {
-        match value[0] {
-            0x01 => Ok(Notification::ConnectResponse),
-            0x20 => Ok(Notification::SetTempUnit),
-            0x30 => Ok(Notification::Temperatures(value.try_into()?)),
-            0x26 => Ok(Notification::TwoSixResponse),
-            _ => Err("Invalid notification type"),
+        let raw = RawTransfer::try_from(value)?;
+        if raw.checksum.valid {
+            let content = NotificationContent::try_from(&raw);
+            match content {
+                Ok(c) => {
+                    Ok(Notification {
+                        raw_notification: raw,
+                        content: Some(c),
+                        status: Status::Ok,
+                    })
+                },
+                Err(e) => {
+                    Ok(Notification {
+                        raw_notification: raw,
+                        content: None,
+                        status: e.into()
+                    })
+                }
+            }
+        } else {
+            Ok(Notification {
+                raw_notification: raw,
+                content: None,
+                status: Status::InvalidChecksum,
+            })
         }
     }
 }

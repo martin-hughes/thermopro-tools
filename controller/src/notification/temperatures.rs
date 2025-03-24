@@ -1,22 +1,14 @@
 use crate::device::TempMode;
+use crate::notification::content::NotificationTryFromErr;
+use crate::notification::content::NotificationTryFromErr::{FieldError, WrongLength};
+use crate::transfer::RawTransfer;
 use bcd_convert::BcdNumber;
-use bytes::Bytes;
 use std::convert::TryFrom;
 // Example temperature notification:
 // 300f5a0c00ffffffffffff0281ffffffff1e0140
 
 #[derive(Debug)]
-struct Checksum {
-    #[allow(unused)]
-    value: u8,
-    #[allow(unused)]
-    valid: bool,
-}
-
-#[derive(Debug)]
 pub struct Temperatures {
-    #[allow(unused)]
-    length: u8,
     #[allow(unused)]
     unknown_a: u8,
     pub celsius: Option<TempMode>,
@@ -24,25 +16,16 @@ pub struct Temperatures {
     pub temps: [Option<u16>; 4], // Temperature in tenths of Celsius
     #[allow(unused)]
     unknown_b: [u8; 4],
-    checksum: Checksum,
-    #[allow(unused)]
-    suffix: [u8; 2],
 }
 
 impl Default for Temperatures {
     fn default() -> Self {
         Temperatures {
-            length: LENGTH,
             unknown_a: UNKNOWN_A,
             celsius: None,
             alarms: 0,
             temps: [None; 4],
             unknown_b: UNKNOWN_B,
-            checksum: Checksum {
-                value: 0,
-                valid: false,
-            },
-            suffix: SUFFIX,
         }
     }
 }
@@ -52,7 +35,6 @@ const LENGTH: u8 = 0x0f;
 const UNKNOWN_A: u8 = 0x5a;
 
 const UNKNOWN_B: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
-const SUFFIX: [u8; 2] = [0x01, 0x40];
 
 fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
     if (val[0] == 0xff) && (val[1] == 0xff) {
@@ -67,42 +49,31 @@ fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
     }
 }
 
-fn calc_checksum(bytes: &[u8]) -> u8 {
-    #[allow(arithmetic_overflow)]
-    let sum: u64 = bytes[0..bytes.len()].iter().map(|x| *x as u64).sum();
-    (sum % 256) as u8
-}
-
-impl TryFrom<Bytes> for Temperatures {
-    type Error = &'static str;
-    fn try_from(val: Bytes) -> Result<Self, Self::Error> {
-        if val[1] != LENGTH {
-            return Err("Invalid length");
-        }
-        if (val[2] != UNKNOWN_A) || (val[18..] != SUFFIX) || (val[13..17] != UNKNOWN_B) {
-            return Err("Invalid constant parts");
+impl TryFrom<&RawTransfer> for Temperatures {
+    type Error = NotificationTryFromErr;
+    fn try_from(val: &RawTransfer) -> Result<Self, Self::Error> {
+        if val.length != LENGTH {
+            return Err(WrongLength);
         }
 
-        let data_part = val[0..17].to_vec();
-        let checksum_val = calc_checksum(&data_part);
-
+        let data_part = &val.value;
         let mut t = Temperatures {
-            celsius: match val[3] {
+            celsius: match data_part[1] {
                 0x0c => Some(TempMode::Celsius),
                 0x0f => Some(TempMode::Fahrenheit),
                 _ => None,
             },
-            alarms: val[4],
-            checksum: Checksum {
-                value: checksum_val,
-                valid: checksum_val == val[17],
-            },
+            alarms: data_part[2],
             ..Default::default()
         };
 
         for i in 0..4 {
-            let offset = (i * 2) + 5;
-            t.temps[i] = temp_from_bytes([val[offset], val[offset + 1]])?;
+            let offset = (i * 2) + 3;
+            let maybe_t = temp_from_bytes([data_part[offset], data_part[offset + 1]]);
+            match maybe_t {
+                Ok(tt) => t.temps[i] = tt,
+                Err(e) => return Err(FieldError(e)),
+            }
         }
 
         Ok(t)
@@ -112,6 +83,7 @@ impl TryFrom<Bytes> for Temperatures {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bytes::Bytes;
 
     #[test]
     fn basic_single_temp_from_bytes() {
@@ -136,10 +108,8 @@ mod tests {
             0x30, 0x0f, 0x5a, 0x0c, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x02, 0x81, 0xff,
             0xff, 0xff, 0xff, 0x1e, 0x01, 0x40,
         ]);
-        let t = Temperatures::try_from(bytes);
+        let raw = RawTransfer::try_from(bytes).unwrap();
+        let t = Temperatures::try_from(&raw);
         assert!(t.is_ok());
-
-        let s = t.unwrap();
-        assert!(s.checksum.valid);
     }
 }

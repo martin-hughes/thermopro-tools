@@ -1,6 +1,6 @@
 use crate::device::Device;
-use crate::notification::Notification;
 use tokio::sync::mpsc::{Receiver, Sender};
+use crate::notification::Notification;
 
 pub enum Updated {
     Updated,

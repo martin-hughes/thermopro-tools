@@ -1,4 +1,5 @@
 use crate::device::DeviceState::{Connected, NotConnected};
+use crate::notification::content::NotificationContent;
 use crate::notification::Notification;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
@@ -110,9 +111,9 @@ impl Device {
         notification: Notification,
         state: &mut DeviceConnectedState,
     ) -> bool {
-        match notification {
-            Notification::ConnectResponse => false,
-            Notification::Temperatures(temps) => {
+        match notification.content {
+            Some(NotificationContent::ConnectResponse) => false,
+            Some(NotificationContent::Temperatures(temps)) => {
                 for i in 0..4 {
                     state.celsius = matches!(temps.celsius, Some(TempMode::Celsius));
                     state.probes[i].temperature = temps.temps[i];
@@ -125,8 +126,9 @@ impl Device {
 
                 true
             }
-            Notification::TwoSixResponse => false,
-            Notification::SetTempUnit => false,
+            Some(NotificationContent::TwoSixResponse) => false,
+            Some(NotificationContent::SetTempUnit) => false,
+            _ => false,
         }
     }
 

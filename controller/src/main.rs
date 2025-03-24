@@ -1,4 +1,5 @@
 use futures::StreamExt;
+mod checksum;
 mod command;
 mod commands;
 mod convert_commands;
@@ -6,9 +7,9 @@ mod convert_notifications;
 mod device;
 mod generate_commands;
 mod notification;
-mod notifications;
 mod peripheral;
 mod receive_notifications;
+mod transfer;
 mod transfer_log;
 mod ui;
 mod ui_state;
