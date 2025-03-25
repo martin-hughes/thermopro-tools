@@ -48,6 +48,22 @@ impl TryFrom<Bytes> for RawTransfer {
     }
 }
 
+impl From<&RawTransfer> for Bytes {
+    fn from(value: &RawTransfer) -> Bytes {
+        let mut bytes = Vec::new();
+        bytes.push(value.notification_type);
+        bytes.push(value.length);
+        let value_bytes = &value.value;
+        bytes.append(value_bytes.to_vec().as_mut());
+        bytes.push(value.checksum.value);
+        if let Some(extra) = &value.extra {
+            bytes.append(extra.to_vec().as_mut());
+        }
+
+        bytes.into()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

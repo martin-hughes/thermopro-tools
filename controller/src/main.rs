@@ -1,7 +1,6 @@
 use futures::StreamExt;
 mod checksum;
 mod command;
-mod commands;
 mod convert_commands;
 mod convert_notifications;
 mod device;

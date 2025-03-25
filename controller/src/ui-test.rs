@@ -1,6 +1,5 @@
 mod checksum;
 mod command;
-mod commands;
 mod device;
 mod notification;
 mod transfer;
