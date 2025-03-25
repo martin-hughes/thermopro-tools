@@ -1,26 +1,29 @@
 mod checksum;
+mod command;
+mod commands;
 mod device;
 mod notification;
 mod transfer;
 mod transfer_log;
 mod ui;
-mod ui_state;
 
+use crate::checksum::Checksum;
+use crate::command::Command;
 use crate::device::DeviceState::Connected;
 use crate::device::{
     AlarmState, AlarmThreshold, Device, DeviceConnectedState, DeviceState, RangeLimitThreshold,
     UpperLimitThreshold,
 };
-use crate::transfer_log::{TransferLog, TransferType};
+use crate::notification::{Notification, Status};
+use crate::transfer::RawTransfer;
+use crate::transfer_log::{Transfer, TransferLog};
 use crate::ui::draw_ui;
-use crate::ui_state::{UiCommands, UiState};
-use bytes::Bytes;
+use crate::ui::ui_state::{UiCommands, UiState};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use crossterm::{
     event, execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
 };
-use rand::Rng;
 use std::error::Error;
 use std::io::stdout;
 use std::panic::{set_hook, take_hook};
@@ -103,18 +106,28 @@ fn main() -> Result<(), Box<dyn Error>> {
     for i in 0..35 {
         // I feel like this is probably not very neat, because it took ChatGPT three attempts to
         // write it! Probably ought to do some digging into random numbers...
-        let mut random_bytes = vec![0u8; 20];
+        /*let mut random_bytes = vec![0u8; 20];
         rand::rng().fill(&mut random_bytes[..]);
-        let random_bytes = Bytes::from(random_bytes);
+        let random_bytes = Bytes::from(random_bytes);*/
 
-        state.transfers.push_transfer(
-            if i % 2 == 0 {
-                TransferType::Command
-            } else {
-                TransferType::Notification
-            },
-            random_bytes,
-        );
+        state.transfers.push_transfer(if i % 2 == 0 {
+            Transfer::Command(Command::Connect)
+        } else {
+            Transfer::Notification(Notification {
+                raw_notification: RawTransfer {
+                    notification_type: 30,
+                    length: 15,
+                    value: Default::default(),
+                    checksum: Checksum {
+                        value: 5,
+                        valid: false,
+                    },
+                    extra: None,
+                },
+                content: None,
+                status: Status::Ok,
+            })
+        });
     }
 
     let d = Connected(dcs);

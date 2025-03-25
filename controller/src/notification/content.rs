@@ -2,7 +2,7 @@ use crate::notification::content::NotificationTryFromErr::UnknownType;
 use crate::notification::temperatures::Temperatures;
 use crate::transfer::RawTransfer;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum NotificationContent {
     ConnectResponse,
     SetTempUnit,

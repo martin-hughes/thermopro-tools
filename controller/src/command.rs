@@ -8,6 +8,7 @@ const CONNECT_CMD: [u8; 12] = [
 
 const TWO_SIX_COMMAND: [u8; 3] = [0x26, 0x00, 0x26];
 
+#[derive(Clone)]
 pub enum Command {
     Connect,
     TwoSix, // Don't know what this is for yet...

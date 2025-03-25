@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use bytes::Bytes;
 use crate::checksum::{calc_checksum, Checksum};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawTransfer {
     pub notification_type: u8,
     pub length: u8,
@@ -51,8 +51,6 @@ impl TryFrom<Bytes> for RawTransfer {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn assert_raw_notification_equal(a: RawTransfer, b: RawTransfer) {}
 
     #[test]
     fn rejects_single_byte() {

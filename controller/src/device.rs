@@ -4,7 +4,7 @@ use crate::notification::Notification;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum TempMode {
     Celsius,
     Fahrenheit,

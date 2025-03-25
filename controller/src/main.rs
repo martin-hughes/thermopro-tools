@@ -12,7 +12,6 @@ mod receive_notifications;
 mod transfer;
 mod transfer_log;
 mod ui;
-mod ui_state;
 
 extern crate pretty_env_logger;
 #[macro_use]
@@ -30,9 +29,9 @@ use crate::receive_notifications::receive_notifications;
 use crate::device::DeviceState::Connected;
 use crate::device::TempMode;
 use crate::generate_commands::Commander;
-use crate::transfer_log::{TransferLog, TransferType};
+use crate::transfer_log::{TransferLog, Transfer};
 use crate::ui::draw_ui;
-use crate::ui_state::{UiCommands, UiState};
+use crate::ui::ui_state::{UiCommands, UiState};
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use bytes::Bytes;
@@ -47,6 +46,8 @@ use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time;
 use tokio::time::timeout;
+use crate::command::Command::Connect;
+use crate::notification::Notification;
 
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
@@ -166,10 +167,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .unwrap()
         {
             let d: Bytes = data.value.into();
-            transfers_a.push_transfer(TransferType::Notification, d.clone());
-            if (notification_tx.send(d).await).is_err() {
-                return;
-            };
+            let r: Result<Notification, _> = d.clone().try_into();
+            if let Ok(rt) = r {
+                transfers_a.push_transfer(Transfer::Notification(rt.clone()));
+                if (notification_tx.send(d).await).is_err() {
+                    return;
+                };
+            }
         }
     });
 
@@ -177,7 +181,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let transfers_b = transfers.clone();
     let _ = tasks.spawn(async move {
         while let Some(data) = command_rx.recv().await {
-            transfers_b.push_transfer(TransferType::Command, data.clone());
+            transfers_b.push_transfer(Transfer::Command(Connect));
             if device
                 .write(
                     &device_writer,

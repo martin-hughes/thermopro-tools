@@ -7,6 +7,7 @@ use crate::notification::content::NotificationTryFromErr;
 use crate::notification::Status::{InvalidContent, InvalidLength, InvalidType};
 use crate::transfer::RawTransfer;
 
+#[derive(Clone)]
 pub enum Status {
     Ok,
     InvalidType,
@@ -25,6 +26,7 @@ impl From<NotificationTryFromErr> for Status {
     }
 }
 
+#[derive(Clone)]
 pub struct Notification {
     pub raw_notification: RawTransfer,
     pub content: Option<NotificationContent>,

@@ -7,7 +7,7 @@ use std::convert::TryFrom;
 // Example temperature notification:
 // 300f5a0c00ffffffffffff0281ffffffff1e0140
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Temperatures {
     #[allow(unused)]
     unknown_a: u8,

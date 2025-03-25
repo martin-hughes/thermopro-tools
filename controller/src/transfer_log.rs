@@ -1,21 +1,16 @@
-use bytes::Bytes;
+use crate::command::Command;
+use crate::notification::Notification;
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
-pub enum TransferType {
-    Command,
-    Notification,
-}
-
-#[derive(Clone)]
-pub struct DeviceTransfer {
-    pub transfer_type: TransferType,
-    pub bytes: Bytes,
+pub enum Transfer {
+    Command(Command),
+    Notification(Notification),
 }
 
 #[derive(Clone)]
 pub struct TransferLog {
-    log: Arc<Mutex<Vec<DeviceTransfer>>>,
+    log: Arc<Mutex<Vec<Transfer>>>,
 }
 
 impl TransferLog {
@@ -25,15 +20,12 @@ impl TransferLog {
         }
     }
 
-    pub fn push_transfer(&self, transfer_type: TransferType, bytes: Bytes) {
+    pub fn push_transfer(&self, transfer: Transfer) {
         let mut v = self.log.lock().unwrap();
-        v.push(DeviceTransfer {
-            transfer_type,
-            bytes,
-        });
+        v.push(transfer);
     }
 
-    pub fn get_transfers(&self) -> Vec<DeviceTransfer> {
+    pub fn get_transfers(&self) -> Vec<Transfer> {
         self.log.lock().unwrap().clone()
     }
 }

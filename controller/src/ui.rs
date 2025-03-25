@@ -1,6 +1,10 @@
+pub mod ui_state;
+mod convert_raw_transfer;
+mod convert_transfer;
+
 use crate::device::AlarmState::Alarm;
 use crate::device::{AlarmThreshold, DeviceConnectedState, DeviceState, Probe};
-use crate::transfer_log::{DeviceTransfer, TransferType};
+use crate::transfer_log::Transfer;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::text::Span;
 use ratatui::widgets::Padding;
@@ -16,20 +20,15 @@ use ratatui::{
 pub fn draw_ui(
     terminal: &mut DefaultTerminal,
     state: DeviceState,
-    device_transfers: Vec<DeviceTransfer>,
+    transfers: Vec<Transfer>,
     pulse_on: bool,
 ) {
     terminal
-        .draw(|frame| draw(frame, &state, device_transfers, pulse_on))
+        .draw(|frame| draw(frame, &state, transfers, pulse_on))
         .unwrap();
 }
 
-fn draw(
-    frame: &mut Frame,
-    state: &DeviceState,
-    device_transfers: Vec<DeviceTransfer>,
-    pulse_on: bool,
-) {
+fn draw(frame: &mut Frame, state: &DeviceState, transfers: Vec<Transfer>, pulse_on: bool) {
     let area = frame.area();
     let title = Line::from(" ThermoPro TP25 ".bold());
     let block = Block::bordered().title(title.centered());
@@ -53,7 +52,7 @@ fn draw(
         DeviceState::NotConnected => (),
         DeviceState::Connected(state) => {
             render_probes(state, pulse_on, frame, vert_chunks[1]);
-            render_command_log(device_transfers, frame, horz_chunks[0]);
+            render_command_log(transfers, frame, horz_chunks[0]);
             render_keybindings(frame, horz_chunks[1]);
         }
     }
@@ -119,7 +118,7 @@ fn render_probes(state: &DeviceConnectedState, pulse_on: bool, frame: &mut Frame
     }
 }
 
-fn render_command_log(device_transfers: Vec<DeviceTransfer>, frame: &mut Frame, area: Rect) {
+fn render_command_log(device_transfers: Vec<Transfer>, frame: &mut Frame, area: Rect) {
     const MAX_DISPLAYED: usize = 30;
 
     let title_line = Line::from("Command log");
@@ -135,18 +134,8 @@ fn render_command_log(device_transfers: Vec<DeviceTransfer>, frame: &mut Frame, 
             lines.push("Too many transfers (max 30 displayed)".into());
             break;
         } else {
-            let mut l = String::new();
-            if matches!(t.transfer_type, TransferType::Command) {
-                l.push('C');
-            } else {
-                l.push('N');
-            }
-            l.push(' ');
-
-            for s in t.bytes.iter().map(|b| format!("{:02x} ", b)) {
-                l.push_str(&s);
-            }
-            lines.push(l.into());
+            let l: Line = t.into();
+            lines.push(l);
         }
     }
 
