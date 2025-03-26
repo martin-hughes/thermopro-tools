@@ -141,6 +141,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             state.device.get_state(),
             state.transfers.get_transfers(),
             start.elapsed().as_millis() % 1500 > 750,
+            &state.ui_state.dialog
         );
         if let Some(cmd) = handle_keyboard(&mut state.ui_state)? {
             match cmd {

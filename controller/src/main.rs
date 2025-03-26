@@ -247,6 +247,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 d.get_state(),
                 transfers.get_transfers(),
                 start.elapsed().as_millis() % 1500 > 750,
+                &None
             );
         }
     });

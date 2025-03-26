@@ -1,3 +1,4 @@
+use crate::ui::dialog::DialogType;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyEventKind};
 
 pub enum UiCommands {
@@ -7,7 +8,7 @@ pub enum UiCommands {
 
 #[derive(Default)]
 pub struct UiState {
-    //pub quit: bool,
+    pub dialog: Option<DialogType>,
 }
 
 impl UiState {
@@ -19,6 +20,11 @@ impl UiState {
     }
 
     fn handle_key_press(&mut self, key: KeyEvent) -> Option<UiCommands> {
+        let handled: bool = false;
+        if let Some(dialog) = self.dialog.as_mut() {
+            
+        }
+        
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Some(UiCommands::Quit),
             KeyCode::Char('c') => Some(UiCommands::ToggleCelsius),

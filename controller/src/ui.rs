@@ -1,10 +1,13 @@
-pub mod ui_state;
 mod convert_raw_transfer;
 mod convert_transfer;
+mod dialog;
+mod raw_command_dialog;
+pub mod ui_state;
 
 use crate::device::AlarmState::Alarm;
 use crate::device::{AlarmThreshold, DeviceConnectedState, DeviceState, Probe};
 use crate::transfer_log::Transfer;
+use crate::ui::dialog::{Dialog, DialogType};
 use ratatui::layout::{Constraint, Layout};
 use ratatui::text::Span;
 use ratatui::widgets::Padding;
@@ -22,13 +25,20 @@ pub fn draw_ui(
     state: DeviceState,
     transfers: Vec<Transfer>,
     pulse_on: bool,
+    dialog: &Option<DialogType>,
 ) {
     terminal
-        .draw(|frame| draw(frame, &state, transfers, pulse_on))
+        .draw(|frame| draw(frame, &state, transfers, pulse_on, dialog))
         .unwrap();
 }
 
-fn draw(frame: &mut Frame, state: &DeviceState, transfers: Vec<Transfer>, pulse_on: bool) {
+fn draw(
+    frame: &mut Frame,
+    state: &DeviceState,
+    transfers: Vec<Transfer>,
+    pulse_on: bool,
+    dialog: &Option<DialogType>,
+) {
     let area = frame.area();
     let title = Line::from(" ThermoPro TP25 ".bold());
     let block = Block::bordered().title(title.centered());
@@ -55,6 +65,10 @@ fn draw(frame: &mut Frame, state: &DeviceState, transfers: Vec<Transfer>, pulse_
             render_command_log(transfers, frame, horz_chunks[0]);
             render_keybindings(frame, horz_chunks[1]);
         }
+    }
+
+    if let Some(dialog) = dialog {
+        dialog.draw();
     }
 }
 
