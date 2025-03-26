@@ -1,6 +1,6 @@
 use crate::device::Device;
-use tokio::sync::mpsc::{Receiver, Sender};
 use crate::notification::Notification;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 pub enum Updated {
     Updated,
@@ -11,8 +11,7 @@ pub async fn receive_notifications(
     mut incoming: Receiver<Notification>,
     updated: Sender<Updated>,
 ) {
-    loop {
-        let n = incoming.recv().await.unwrap();
+    while let Some(n) = incoming.recv().await {
         if device.handle_notification(n) {
             updated.send(Updated::Updated).await.unwrap();
         }

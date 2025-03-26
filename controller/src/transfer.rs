@@ -1,6 +1,6 @@
-use std::convert::TryFrom;
-use bytes::Bytes;
 use crate::checksum::{calc_checksum, Checksum};
+use bytes::Bytes;
+use std::convert::TryFrom;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RawTransfer {
@@ -38,12 +38,12 @@ impl TryFrom<Bytes> for RawTransfer {
         Ok(RawTransfer {
             notification_type: value[0],
             length: value[1],
-            value: value_bytes.into(),
+            value: value_bytes,
             checksum: Checksum {
                 value: checksum_byte,
                 valid: checksum_byte == calc_checksum,
             },
-            extra: if extra.len() > 0 { Some(extra) } else { None },
+            extra: if !extra.is_empty() { Some(extra) } else { None },
         })
     }
 }

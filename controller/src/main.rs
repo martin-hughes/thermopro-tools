@@ -25,10 +25,12 @@ use crate::peripheral::{
 };
 use crate::receive_notifications::receive_notifications;
 
+use crate::command::Command;
 use crate::device::DeviceState::Connected;
 use crate::device::TempMode;
 use crate::generate_commands::Commander;
-use crate::transfer_log::{TransferLog, Transfer};
+use crate::notification::Notification;
+use crate::transfer_log::{Transfer, TransferLog};
 use crate::ui::draw_ui;
 use crate::ui::ui_state::{UiCommands, UiState};
 use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
@@ -45,8 +47,6 @@ use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 use tokio::time;
 use tokio::time::timeout;
-use crate::command::Command::Connect;
-use crate::notification::Notification;
 
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
@@ -141,7 +141,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     const CHANNEL_SIZE: usize = 10;
     let (notification_tx, notification_rx) = channel(CHANNEL_SIZE);
     let (controller_in_tx, controller_in_rx) = channel(CHANNEL_SIZE);
-    let (controller_out_tx, controller_out_rx) = channel(CHANNEL_SIZE);
+    let (controller_out_tx, mut controller_out_rx) = channel::<Command>(CHANNEL_SIZE);
+    let (logger_tx, logger_rx) = channel(CHANNEL_SIZE);
     let (command_tx, mut command_rx) = channel(CHANNEL_SIZE);
     let (update_tx, mut update_rx) = channel(CHANNEL_SIZE);
 
@@ -156,7 +157,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         controller_in_rx,
         update_tx,
     ));
-    let _ = tasks.spawn(convert_commands(controller_out_rx, command_tx));
+
+    let transfers_b = transfers.clone();
+    let _ = tasks.spawn(async move {
+        while let Some(data) = controller_out_rx.recv().await {
+            transfers_b.push_transfer(Transfer::Command(data.clone()));
+            if logger_tx.send(data).await.is_err() {
+                return;
+            }
+        }
+    });
+    let _ = tasks.spawn(convert_commands(logger_rx, command_tx));
 
     // Receiving from the bluetooth peripheral
     let transfers_a = transfers.clone();
@@ -177,10 +188,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     // Sending to the bluetooth peripheral
-    let transfers_b = transfers.clone();
     let _ = tasks.spawn(async move {
         while let Some(data) = command_rx.recv().await {
-            transfers_b.push_transfer(Transfer::Command(Connect));
             if device
                 .write(
                     &device_writer,
@@ -202,11 +211,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let keyboard_device = controller_device.clone();
     let _ = tasks.spawn(async move {
         let mut reader = EventStream::new();
-        loop {
-            let maybe_event = reader.next().await;
-            match maybe_event {
-                None => return,
-                Some(Ok(event)) => {
+        while let Some(event) = reader.next().await {
+            match event {
+                Ok(event) => {
                     if let Some(cmd) = keyboard_ui_state.lock().await.handle_event(event) {
                         match cmd {
                             UiCommands::Quit => return,
@@ -223,7 +230,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                 }
-                Some(Err(_)) => return,
+                Err(_) => return,
             }
         }
     });
@@ -234,7 +241,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let d = controller_device;
         let start = Instant::now();
 
-        while (update_rx.recv().await).is_some() {
+        while update_rx.recv().await.is_some() {
             draw_ui(
                 &mut terminal,
                 d.get_state(),
