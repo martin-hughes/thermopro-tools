@@ -1,5 +1,5 @@
 [workspace]
 resolver = "2"
 
-members = ["tlv-check", "controller", "cursive-ui"]
-default-members = ["controller"]
+members = ["tlv-check", "cursive-ui"]
+default-members = ["cursive-ui"]
