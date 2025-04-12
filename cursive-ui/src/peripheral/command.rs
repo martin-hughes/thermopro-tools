@@ -6,8 +6,16 @@ use bytes::Bytes;
 #[derive(Clone)]
 pub enum Decoded {
     Startup,
+
+    // I know the "decoded" structs aren't used at present, but having written them in I think
+    // they're worth keeping so we can expand the UI in the future.
+    #[allow(dead_code)]
     SetTempMode(TemperatureMode),
+
+    #[allow(dead_code)]
     ReportProfile(u8),
+
+    #[allow(dead_code)]
     SetProbeProfile(u8, AlarmThreshold),
 }
 

@@ -1,6 +1,4 @@
 use crate::model::transfer_log::{Transfer, TransferLog};
-use crate::peripheral::command::Command;
-use crate::peripheral::notification::Notification;
 use crate::ui::strings::GetName;
 use crate::ui::views::transfer_view::TransferView;
 use cursive::view::ViewWrapper;
@@ -23,7 +21,7 @@ impl TransferLogView {
                 .column(LogColumns::Index, "Seq", |c| c)
                 .column(LogColumns::Type, "Type", |c| c)
                 .column(LogColumns::Name, "Name", |c| c)
-                .on_submit(move |c, r, i| {
+                .on_submit(move |c, r, _| {
                     let t = dialog_transfers.lock().unwrap();
                     c.add_layer(Dialog::around(TransferView::new(&t[r])).button("OK", |c| {
                         c.pop_layer();

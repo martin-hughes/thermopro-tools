@@ -85,7 +85,7 @@ pub fn calc_checksum(bytes: &[u8]) -> u8 {
     (sum % 256) as u8
 }
 
-fn startup(raw: &Bytes) -> Decoded {
+fn startup(_: &Bytes) -> Decoded {
     // There is byte of value, but its purpose is currently unknown.
     Decoded::Startup
 }
