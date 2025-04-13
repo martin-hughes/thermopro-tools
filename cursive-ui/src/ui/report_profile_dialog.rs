@@ -1,10 +1,10 @@
-use crate::ui::ui_request::UiRequest;
 use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView};
 use cursive::Cursive;
+use device_controller::controller::command_request::CommandRequest;
 use tokio::sync::mpsc::Sender;
 
-pub fn report_profile_cb(c: &mut Cursive, tx: &Sender<UiRequest>) {
+pub fn report_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
     let tx_cb = tx.clone();
     c.add_layer(
         Dialog::new()
@@ -25,7 +25,7 @@ pub fn report_profile_cb(c: &mut Cursive, tx: &Sender<UiRequest>) {
                     c2.add_layer(Dialog::info("Probe number invalid!"));
                 } else {
                     tx_cb
-                        .blocking_send(UiRequest::ReportProfile(num - 1))
+                        .blocking_send(CommandRequest::ReportProfile(num - 1))
                         .unwrap()
                 }
             }),

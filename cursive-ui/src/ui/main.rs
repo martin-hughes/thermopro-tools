@@ -1,15 +1,15 @@
-use crate::model::probe::Probe;
 use crate::ui::menu::install_menu;
 use crate::ui::receiver::{receiver_thread, CommandReceiver};
 use crate::ui::status_view::make_status_view;
 use crate::ui::transfer_log::make_transfer_log;
-use crate::ui::ui_request::UiRequest;
 use crate::ui::views::ProbeView;
 use cursive::align::HAlign;
 use cursive::event::Key;
 use cursive::traits::*;
 use cursive::views::{Dialog, DummyView, LinearLayout, Panel};
 use cursive::Cursive;
+use device_controller::controller::command_request::CommandRequest;
+use device_controller::model::probe::Probe;
 use std::thread;
 use tokio::sync::mpsc::Sender;
 
@@ -34,7 +34,7 @@ pub fn update_probe(c: &mut Cursive, index: usize, probe: &Probe) {
     });
 }
 
-pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<UiRequest>) {
+pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRequest>) {
     let mut siv = cursive::default();
     install_menu(&mut siv, request_tx);
     siv.set_autohide_menu(false);

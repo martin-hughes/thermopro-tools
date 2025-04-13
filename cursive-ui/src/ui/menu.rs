@@ -1,10 +1,10 @@
 use crate::ui::report_profile_dialog::report_profile_cb;
 use crate::ui::set_profile_dialog::set_profile_cb;
-use crate::ui::ui_request::UiRequest;
 use cursive::{menu, CursiveRunnable};
+use device_controller::controller::command_request::CommandRequest;
 use tokio::sync::mpsc::Sender;
 
-pub fn install_menu(c: &mut CursiveRunnable, request_tx: Sender<UiRequest>) {
+pub fn install_menu(c: &mut CursiveRunnable, request_tx: Sender<CommandRequest>) {
     let tx_a = request_tx.clone();
     let tx_b = request_tx.clone();
     let tx_c = request_tx.clone();
@@ -16,10 +16,11 @@ pub fn install_menu(c: &mut CursiveRunnable, request_tx: Sender<UiRequest>) {
             menu::Tree::new()
                 // Trees are made of leaves, with are directly actionable...
                 .leaf("Toggle Temp Mode", move |_| {
-                    tx_a.blocking_send(UiRequest::ToggleTempMode).unwrap();
+                    tx_a.blocking_send(CommandRequest::ToggleTempMode).unwrap();
                 })
                 .leaf("Report all profiles", move |_| {
-                    tx_b.blocking_send(UiRequest::ReportAllProfiles).unwrap();
+                    tx_b.blocking_send(CommandRequest::ReportAllProfiles)
+                        .unwrap();
                 })
                 .leaf("Report profile", move |c| report_profile_cb(c, &tx_c))
                 .leaf("Set profile", move |c| set_profile_cb(c, &tx_d)),

@@ -7,5 +7,4 @@ mod status_view;
 mod strings;
 mod transfer_log;
 pub mod ui_command;
-pub mod ui_request;
 mod views;

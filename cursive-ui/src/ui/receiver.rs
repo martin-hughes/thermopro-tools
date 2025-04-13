@@ -14,6 +14,9 @@ pub fn receiver_thread(receiver: CommandReceiver, cb_sink: CbSink) {
         };
         match command {
             UiCommand::UpdateState(s) => cb_sink.send(Box::new(|c| update_state(c, s))).unwrap(),
+            UiCommand::UpdateTransferLog(t) => cb_sink
+                .send(Box::new(|c| update_transfer_log(t, c)))
+                .unwrap(),
             UiCommand::Quit => cb_sink.send(Box::new(|c| c.quit())).unwrap(),
         }
     }
@@ -28,5 +31,4 @@ fn update_state(c: &mut Cursive, state: UpdateStateDetails) {
         .for_each(|(i, probe)| update_probe(c, i, probe));
 
     update_status_view(c, &state.device_state);
-    update_transfer_log(state.transfer_log, c);
 }

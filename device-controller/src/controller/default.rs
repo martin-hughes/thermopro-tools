@@ -3,31 +3,31 @@ use crate::controller::dummy_device_finder::get_device;
 
 #[cfg(not(feature = "dummy_device"))]
 use crate::controller::btleplug_device_finder::get_device;
+use crate::controller::command_request::CommandRequest;
 use crate::model::device::{TP25State, TemperatureMode};
 use crate::model::probe::{AlarmState, AlarmThreshold};
-use crate::model::transfer_log::{Transfer, TransferLog};
 use crate::peripheral::command::{
     build_report_profile_cmd, build_set_profile_cmd, build_set_temp_mode_command,
     build_startup_command, Command,
 };
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
 use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, TemperatureData};
-use crate::ui::ui_command::{UiCommand, UpdateStateDetails};
-use crate::ui::ui_request::UiRequest;
-use std::sync::mpsc::Sender;
+use crate::peripheral::transfer::Transfer;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::select;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::mpsc::{Receiver, Sender};
 
 pub struct Controller {}
 
 type ProtectedDeviceState = Arc<Mutex<TP25State>>;
 
 impl Controller {
-    pub async fn run(ui_command_tx: Sender<UiCommand>, mut ui_request_rx: Receiver<UiRequest>) {
-        let quit_tx = ui_command_tx.clone();
-
+    pub async fn run(
+        state_update_tx: Sender<TP25State>,
+        transfer_tx: Sender<Transfer>,
+        mut command_request_rx: Receiver<CommandRequest>,
+    ) {
         let (mut peripheral_rx, peripheral_tx) = get_device().await;
         let device_state = TP25State {
             connected: true,
@@ -35,11 +35,8 @@ impl Controller {
         };
         let protected_device_state = Arc::new(Mutex::new(device_state));
 
-        let transfer_log = TransferLog::new();
-        let transfer_log_b = transfer_log.clone();
-
-        let ui_cmd_tx_b = ui_command_tx.clone();
         let protected_device_state_b = protected_device_state.clone();
+        let transfer_tx_b = transfer_tx.clone();
 
         let receiver_task = tokio::spawn(async move {
             loop {
@@ -48,25 +45,27 @@ impl Controller {
                     // TODO: Update the screen to say disconnected, try to reconnect, etc.
                     return;
                 };
-                let device_state = &mut protected_device_state.lock().unwrap();
-
-                handle_notification(n, &transfer_log, &ui_command_tx, device_state);
+                let device_state = &mut protected_device_state.lock().unwrap().clone();
+                transfer_tx
+                    .send(Transfer::Notification(n.clone()))
+                    .await
+                    .unwrap();
+                handle_notification(n, &state_update_tx, device_state).await;
             }
         });
 
         let ui_task = tokio::spawn(async move {
             // TODO: The next line doesn't really sit well here, conceptually.
-            send_startup_cmd(&transfer_log_b, &peripheral_tx).await;
+            send_startup_cmd(&peripheral_tx, &transfer_tx_b).await;
 
             loop {
-                let Some(r) = ui_request_rx.recv().await else {
+                let Some(r) = command_request_rx.recv().await else {
                     return;
                 };
-                handle_ui_request(
+                handle_command_request(
                     r,
-                    &transfer_log_b,
                     &peripheral_tx,
-                    &ui_cmd_tx_b,
+                    &transfer_tx_b,
                     get_device_state(&protected_device_state_b),
                 )
                 .await;
@@ -74,86 +73,86 @@ impl Controller {
         });
 
         select! { _ = receiver_task => {}, _ = ui_task => {}};
-
-        quit_tx.send(UiCommand::Quit).unwrap()
     }
 }
-fn handle_notification(
+async fn handle_notification(
     notification: Notification,
-    transfer_log: &TransferLog,
-    ui_cmd_tx: &Sender<UiCommand>,
+    ui_cmd_tx: &Sender<TP25State>,
     device_state: &mut TP25State,
 ) {
-    match &notification.decoded {
-        Decoded::Unknown => {}
-        Decoded::Startup => {}
-        Decoded::SetTempMode => {}
-        Decoded::ReportProbeProfile(profile_data) => {
-            handle_probe_profile(profile_data, device_state)
-        }
-        Decoded::Temperatures(temps) => handle_temps(temps, device_state),
-        Decoded::SetProbeProfile => {}
-        Decoded::Error => {}
-    };
-    transfer_log.push_transfer(Transfer::Notification(notification));
-    update_ui(transfer_log, ui_cmd_tx, device_state.clone());
+    update_model_from_notification(&notification, device_state);
+    send_state_update(ui_cmd_tx, device_state.clone()).await;
 }
 
-async fn handle_ui_request(
-    ui_request: UiRequest,
-    transfer_log: &TransferLog,
+fn update_model_from_notification(
+    notification: &Notification,
+    device_state: &mut TP25State,
+) -> bool {
+    match &notification.decoded {
+        Decoded::Unknown => false,
+        Decoded::Startup => false,
+        Decoded::SetTempMode => false,
+        Decoded::ReportProbeProfile(profile_data) => {
+            handle_probe_profile(profile_data, device_state);
+            true
+        }
+        Decoded::Temperatures(temps) => {
+            handle_temps(temps, device_state);
+            true
+        }
+        Decoded::SetProbeProfile => false,
+        Decoded::Error => false,
+    }
+}
+
+async fn handle_command_request(
+    command_request: CommandRequest,
     device: &impl TP25Writer,
-    ui_cmd_tx: &Sender<UiCommand>,
+    transfer_tx: &Sender<Transfer>,
     device_state: TP25State,
 ) {
-    match ui_request {
-        UiRequest::ToggleTempMode => {
+    match command_request {
+        CommandRequest::ToggleTempMode => {
             let mode = match device_state.temperature_mode {
                 Some(TemperatureMode::Celsius) => TemperatureMode::Fahrenheit,
                 _ => TemperatureMode::Celsius,
             };
-            send_temp_mode_cmd(mode, transfer_log, device).await;
+            send_temp_mode_cmd(mode, device, transfer_tx).await;
         }
-        UiRequest::ReportAllProfiles => {
-            send_query_profile(transfer_log, device, 0).await;
-            send_query_profile(transfer_log, device, 1).await;
-            send_query_profile(transfer_log, device, 2).await;
-            send_query_profile(transfer_log, device, 3).await;
+        CommandRequest::ReportAllProfiles => {
+            send_query_profile(device, transfer_tx, 0).await;
+            send_query_profile(device, transfer_tx, 1).await;
+            send_query_profile(device, transfer_tx, 2).await;
+            send_query_profile(device, transfer_tx, 3).await;
         }
-        UiRequest::ReportProfile(idx) => {
-            send_query_profile(transfer_log, device, idx).await;
+        CommandRequest::ReportProfile(idx) => {
+            send_query_profile(device, transfer_tx, idx).await;
         }
-        UiRequest::SetProfile(idx, profile) => {
+        CommandRequest::SetProfile(idx, profile) => {
             let profile = match profile {
                 AlarmThreshold::Unknown => AlarmThreshold::NoneSet,
                 _ => profile,
             };
-            send_set_profile(transfer_log, device, idx, profile).await;
+            send_set_profile(device, transfer_tx, idx, profile).await;
         }
     }
-
-    update_ui(transfer_log, ui_cmd_tx, device_state);
 }
 
-async fn send_startup_cmd(transfer_log: &TransferLog, device: &impl TP25Writer) {
-    send_cmd(transfer_log, device, build_startup_command()).await;
+async fn send_startup_cmd(device: &impl TP25Writer, transfer_tx: &Sender<Transfer>) {
+    send_cmd(device, transfer_tx, build_startup_command()).await;
 }
 
 async fn send_temp_mode_cmd(
     mode: TemperatureMode,
-    transfer_log: &TransferLog,
     device: &impl TP25Writer,
+    transfer_tx: &Sender<Transfer>,
 ) {
-    send_cmd(transfer_log, device, build_set_temp_mode_command(mode)).await;
+    send_cmd(device, transfer_tx, build_set_temp_mode_command(mode)).await;
 }
 
-fn update_ui(transfer_log: &TransferLog, ui_cmd_tx: &Sender<UiCommand>, device_state: TP25State) {
-    ui_cmd_tx
-        .send(UiCommand::UpdateState(UpdateStateDetails {
-            transfer_log: transfer_log.clone(),
-            device_state,
-        }))
-        .unwrap();
+async fn send_state_update(ui_cmd_tx: &Sender<TP25State>, device_state: TP25State) {
+    // TODO: handle when this send fails, as the receiver has gone away
+    let _ = ui_cmd_tx.send(device_state).await;
 }
 
 fn get_device_state(protected: &ProtectedDeviceState) -> TP25State {
@@ -176,21 +175,24 @@ fn handle_probe_profile(profile_data: &ProbeProfileData, device_state: &mut TP25
     device_state.probes[(profile_data.idx - 1) as usize].alarm_threshold = profile_data.threshold;
 }
 
-async fn send_cmd(transfer_log: &TransferLog, device: &impl TP25Writer, command: Command) {
-    transfer_log.push_transfer(Transfer::Command(command.clone()));
+async fn send_cmd(device: &impl TP25Writer, transfer_tx: &Sender<Transfer>, command: Command) {
+    transfer_tx
+        .send(Transfer::Command(command.clone()))
+        .await
+        .unwrap();
     device.send_cmd(command).await;
 }
 
-async fn send_query_profile(transfer_log: &TransferLog, device: &impl TP25Writer, idx: u8) {
+async fn send_query_profile(device: &impl TP25Writer, transfer_tx: &Sender<Transfer>, idx: u8) {
     if idx > 3 {
         panic!("Invalid profile index");
     }
-    send_cmd(transfer_log, device, build_report_profile_cmd(idx)).await;
+    send_cmd(device, transfer_tx, build_report_profile_cmd(idx)).await;
 }
 
 async fn send_set_profile(
-    transfer_log: &TransferLog,
     device: &impl TP25Writer,
+    transfer_tx: &Sender<Transfer>,
     idx: u8,
     threshold: AlarmThreshold,
 ) {
@@ -201,5 +203,5 @@ async fn send_set_profile(
         // TODO: Should probably enforce this with a different type...
         panic!("Can't send Unknown alarm threshold");
     }
-    send_cmd(transfer_log, device, build_set_profile_cmd(idx, threshold)).await;
+    send_cmd(device, transfer_tx, build_set_profile_cmd(idx, threshold)).await;
 }

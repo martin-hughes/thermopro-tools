@@ -1,9 +1,9 @@
-use crate::model::device::{TP25State, TemperatureMode};
 use cursive::align::HAlign;
 use cursive::traits::Nameable;
 use cursive::utils::markup::StyledString;
 use cursive::views::{NamedView, Panel, TextView};
 use cursive::Cursive;
+use device_controller::model::device::{TP25State, TemperatureMode};
 
 const STATUS_TEXT_NAME: &str = "status_text";
 pub fn make_status_view() -> Panel<NamedView<TextView>> {

@@ -6,3 +6,4 @@ pub mod command;
 pub mod dummy;
 pub mod interface;
 pub mod notification;
+pub mod transfer;

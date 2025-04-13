@@ -1,5 +1,5 @@
-use crate::peripheral::command::{Command, Decoded as CmdDecoded};
-use crate::peripheral::notification::{Decoded as NtfyDecoded, Notification};
+use device_controller::peripheral::command::{Command, Decoded as CmdDecoded};
+use device_controller::peripheral::notification::{Decoded as NtfyDecoded, Notification};
 
 pub trait GetName {
     fn get_name(&self) -> &'static str;

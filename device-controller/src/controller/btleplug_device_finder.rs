@@ -4,7 +4,6 @@ use btleplug::api::{
     ValueNotification,
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
-use cursive::reexports::log::{info, warn};
 use futures::Stream;
 use std::error::Error;
 use std::pin::Pin;
@@ -71,28 +70,33 @@ async fn check_peripheral(peripheral: &Peripheral) -> bool {
         .unwrap()
         .local_name
         .unwrap_or(String::from("(peripheral name unknown)"));
-    info!(
+    // TODO: Logging
+    /*info!(
         "Peripheral {:?} is connected: {:?}",
         &local_name, is_connected
-    );
+    );*/
     // Check if it's the peripheral we want.
     if is_relevant_name(local_name.as_str()) {
-        info!("Found matching peripheral {:?}...", &local_name);
+        // TODO: Logging
+        /*info!("Found matching peripheral {:?}...", &local_name);*/
         if !is_connected {
             // Connect if we aren't already connected.
-            if let Err(err) = peripheral.connect().await {
-                warn!("Error connecting to peripheral, skipping: {}", err);
+            if let Err(_) = peripheral.connect().await {
+                // TODO: Logging
+                /*warn!("Error connecting to peripheral, skipping: {}", err);*/
                 return false;
             }
         }
         let is_connected = peripheral.is_connected().await.unwrap();
-        info!(
+        // TODO: Logging
+        /*info!(
             "Now connected ({:?}) to peripheral {:?}.",
             is_connected, &local_name
-        );
+        );*/
         is_connected && has_required_characteristics(&peripheral).await
     } else {
-        info!("Skipping unknown peripheral {:?}", peripheral);
+        // TODO: Logging
+        //info!("Skipping unknown peripheral {:?}", peripheral);
         false
     }
 }
@@ -108,7 +112,8 @@ pub fn is_relevant_name(name: &str) -> bool {
 }
 
 pub async fn has_required_characteristics(device: &Peripheral) -> bool {
-    info!("Discover peripheral services...");
+    // TODO: Logging
+    //info!("Discover peripheral services...");
     if device.discover_services().await.is_err() {
         return false;
     }
@@ -123,7 +128,8 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
         .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
         .unwrap();
 
-    info!("Checking characteristic {:?}", notify_characteristic);
+    // TODO: Logging
+    //info!("Checking characteristic {:?}", notify_characteristic);
     // Subscribe to notifications from the characteristic with the selected
     // UUID.
     is_notify_characteristic(notify_characteristic) && is_write_characteristic(write_characteristic)
@@ -151,17 +157,18 @@ pub async fn subscribe_to_notifications(
         .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
         .unwrap();
 
-    info!("Checking characteristic {:?}", notify_characteristic);
+    // TODO: Logging
+    //info!("Checking characteristic {:?}", notify_characteristic);
     // Subscribe to notifications from the characteristic with the selected
     // UUID.
     if !is_notify_characteristic(notify_characteristic) {
         return Err("Bad characteristics".into());
     }
-
-    info!(
+    // TODO: Logging
+    /*info!(
         "Subscribing to characteristic {:?}",
         notify_characteristic.uuid
-    );
+    );*/
     device.subscribe(notify_characteristic).await?;
 
     Ok(device.notifications().await)

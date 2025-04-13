@@ -1,9 +1,9 @@
-use crate::model::transfer_log::Transfer;
 use crate::ui::strings::GetName;
 use bytes::Bytes;
 use cursive::utils::markup::StyledString;
 use cursive::view::ViewWrapper;
 use cursive::views::TextView;
+use device_controller::peripheral::transfer::Transfer;
 
 pub struct TransferView {
     inner: TextView,

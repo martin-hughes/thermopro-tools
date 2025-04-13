@@ -1,8 +1,8 @@
-use crate::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
-use crate::ui::ui_request::UiRequest;
 use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView, ListView, SelectView};
 use cursive::Cursive;
+use device_controller::controller::command_request::CommandRequest;
+use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 
@@ -22,7 +22,7 @@ enum TypeMenuIndex {
     Range,
 }
 
-pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<UiRequest>) {
+pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
     let tx_cb = tx.clone();
 
     let type_state = Arc::new(Mutex::new(TsStore {
@@ -104,7 +104,7 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<UiRequest>) {
                         })
                     }
                 };
-                let r = UiRequest::SetProfile(num - 1, at);
+                let r = CommandRequest::SetProfile(num - 1, at);
                 tx_cb.blocking_send(r).unwrap();
             }),
     )

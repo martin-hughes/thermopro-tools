@@ -1,12 +1,5 @@
-use crate::peripheral::command::Command;
-use crate::peripheral::notification::Notification;
+use device_controller::peripheral::transfer::Transfer;
 use std::sync::{Arc, Mutex};
-
-#[derive(Clone)]
-pub enum Transfer {
-    Notification(Notification),
-    Command(Command),
-}
 
 #[derive(Default)]
 struct Internal {

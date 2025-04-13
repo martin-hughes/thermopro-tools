@@ -1,25 +1,17 @@
 [package]
-name = "cursive-ui"
+name = "device_controller"
 version = "0.1.0"
 edition = "2021"
-default-run = "cursive-ui"
 
 [dependencies]
 assert_matches = "1.5.0"
 bcd-convert = "0.1.0"
 btleplug = "0.11.7"
 bytes = "1.10.1"
-cursive = "0.21"
-cursive_table_view = "0.15.0"
-device_controller = { workspace = true }
 tokio = { version = "1.44.2", features = ["full", "test-util"] }
 trait-variant = "0.1.2"
 uuid = { version = "1.16.0", features = ["v4"] }
 futures = "0.3.31"
 
-[[bin]]
-name = "cursive-ui"
-path = "src/main.rs"
-
 [features]
-dummy_device = ["device_controller/dummy_device"]
+dummy_device = []

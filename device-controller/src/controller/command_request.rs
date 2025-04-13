@@ -1,6 +1,6 @@
 use crate::model::probe::AlarmThreshold;
 
-pub enum UiRequest {
+pub enum CommandRequest {
     ToggleTempMode,
     ReportAllProfiles,
     ReportProfile(u8),

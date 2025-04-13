@@ -1,9 +1,10 @@
-use crate::model::transfer_log::{Transfer, TransferLog};
+use crate::model::transfer_log::TransferLog;
 use crate::ui::strings::GetName;
 use crate::ui::views::transfer_view::TransferView;
 use cursive::view::ViewWrapper;
 use cursive::views::Dialog;
 use cursive_table_view::{TableView, TableViewItem};
+use device_controller::peripheral::transfer::Transfer;
 use std::cmp::Ordering;
 use std::sync::{Arc, Mutex};
 

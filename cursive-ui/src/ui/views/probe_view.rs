@@ -1,7 +1,7 @@
-use crate::model::probe::{AlarmState, AlarmThreshold, Probe};
 use cursive::utils::markup::StyledString;
 use cursive::view::ViewWrapper;
 use cursive::views::TextView;
+use device_controller::model::probe::{AlarmState, AlarmThreshold, Probe};
 
 pub struct ProbeView {
     inner: TextView,
