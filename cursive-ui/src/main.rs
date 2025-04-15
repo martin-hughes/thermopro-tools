@@ -43,6 +43,7 @@ async fn tokio_main_loop(ui_cmd_tx: Sender<UiCommand>, ui_request_rx: Receiver<C
     let task_a = Controller::run(state_tx, transfer_tx, ui_request_rx);
 
     let ui_cmd_tx_2 = ui_cmd_tx.clone();
+    let ui_cmd_tx_3 = ui_cmd_tx.clone();
 
     let task_b = tokio::spawn(async move {
         loop {
@@ -71,4 +72,6 @@ async fn tokio_main_loop(ui_cmd_tx: Sender<UiCommand>, ui_request_rx: Receiver<C
     });
 
     select!(_ = task_a => {}, _ = task_b => {}, _ = task_c => {});
+
+    ui_cmd_tx_3.send(UiCommand::Quit).unwrap();
 }
