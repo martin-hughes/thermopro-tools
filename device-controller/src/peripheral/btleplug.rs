@@ -48,18 +48,13 @@ impl BtleplugWriter {
 }
 
 impl TP25Writer for BtleplugWriter {
-    async fn send_cmd(&self, command: Command) {
-        if self
-            .device
+    async fn send_cmd(&self, command: Command) -> Result<(), btleplug::Error> {
+        self.device
             .write(
                 &self.write_characteristic,
                 command.raw.iter().as_slice(),
                 WriteType::WithoutResponse,
             )
             .await
-            .is_err()
-        {
-            panic!("Failed to send command");
-        }
     }
 }

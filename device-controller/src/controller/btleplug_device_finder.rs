@@ -35,12 +35,14 @@ pub async fn get_device() -> (BtleplugReceiver, BtleplugWriter) {
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
     for adapter in adapter_list.iter() {
-        println!("Starting scan...");
+        // TODO: Logging
+        //println!("Starting scan...");
         let _ = tasks.spawn(find_device_from_adapter(adapter.clone()));
     }
 
     let p = tasks.join_next().await.unwrap().unwrap();
-    println!("Found device");
+    // TODO: Logging
+    //println!("Found device");
     p
 }
 
@@ -119,14 +121,18 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
     }
 
     let characteristics = device.characteristics();
-    let notify_characteristic = characteristics
+    let Some(notify_characteristic) = characteristics
         .iter()
         .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
-        .unwrap();
-    let write_characteristic = characteristics
+    else {
+        return false;
+    };
+    let Some(write_characteristic) = characteristics
         .iter()
         .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
-        .unwrap();
+    else {
+        return false;
+    };
 
     // TODO: Logging
     //info!("Checking characteristic {:?}", notify_characteristic);

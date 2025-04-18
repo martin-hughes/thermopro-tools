@@ -57,7 +57,7 @@ impl TP25Receiver for Peripheral {
 }
 
 impl TP25Writer for Peripheral {
-    async fn send_cmd(&self, command: Command) {
+    async fn send_cmd(&self, command: Command) -> Result<(), btleplug::Error> {
         let mut state = self.internal.lock().unwrap();
         match command.decoded {
             Decoded::Startup => state.queued_notifications.push_back(Notification {
@@ -89,6 +89,7 @@ impl TP25Writer for Peripheral {
                 });
             }
         };
+        Ok(())
     }
 }
 

@@ -10,5 +10,5 @@ pub trait LocalTP25Receiver {
 #[trait_variant::make(TP25Writer: Send)]
 pub trait LocalTP25Writer {
     #[allow(unused)] // Needed because we always used the variant constructed above
-    async fn send_cmd(&self, command: Command);
+    async fn send_cmd(&self, command: Command) -> Result<(), btleplug::Error>;
 }
