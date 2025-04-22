@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
 
-members = ["tlv-check", "cursive-ui", "device-controller"]
+members = ["tlv-check", "cursive-ui", "device-controller", "http-server"]
 default-members = ["cursive-ui"]
 dependencies = { "device_controller" = { path = "device-controller" } }

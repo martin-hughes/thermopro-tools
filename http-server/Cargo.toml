@@ -1,0 +1,20 @@
+[package]
+name = "http-server"
+version = "0.1.0"
+edition = "2021"
+default-run = "http-server"
+
+# Because we use async closures:
+rust-version = "1.85.0"
+
+[dependencies]
+actix-web = "4.10.2"
+device_controller = { workspace = true }
+tokio = { version = "1.44.2", features = ["full", "test-util"] }
+
+[[bin]]
+name = "http-server"
+path = "src/main.rs"
+
+[features]
+dummy_device = ["device_controller/dummy_device"]
