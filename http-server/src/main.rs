@@ -1,3 +1,6 @@
+mod state_to_json;
+
+use crate::state_to_json::state_to_json;
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use device_controller::controller::default::Controller;
 use device_controller::model::device::TP25State;
@@ -21,14 +24,17 @@ impl AppState {
 
 async fn get_state(data: web::Data<AppState>) -> impl Responder {
     let state = data.state.lock().await;
-    HttpResponse::Ok().body(state.connected.to_string())
+    let r = state_to_json(&state);
+    HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(r.to_string())
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let (state_tx, mut state_rx) = tokio_channel(10);
     let (transfer_tx, mut transfer_rx) = tokio_channel(10);
-    let (_, ui_request_rx) = tokio_channel(10);
+    let (_tx, ui_request_rx) = tokio_channel(10);
 
     let state = web::Data::new(AppState::new());
 
