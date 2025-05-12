@@ -12,21 +12,20 @@ use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 
 struct AppState {
-    state: Mutex<TP25State>,
     state_rx: Mutex<watch::Receiver<TP25State>>,
 }
 
 impl AppState {
     fn new(state_rx: watch::Receiver<TP25State>) -> Self {
         Self {
-            state: Mutex::new(TP25State::default()),
             state_rx: Mutex::new(state_rx),
         }
     }
 }
 
 async fn get_state(data: web::Data<AppState>) -> impl Responder {
-    let state = data.state.lock().await;
+    let state_g = data.state_rx.lock().await;
+    let state = state_g.borrow();
     let r = state_to_json(&state);
     HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
@@ -104,11 +103,10 @@ async fn main() -> std::io::Result<()> {
     // Controller task.
     all_tasks.spawn(Controller::run(state_tx, transfer_tx, ui_request_rx));
 
-    let server_state = state.clone();
     // Server task.
     let s = HttpServer::new(move || {
         App::new()
-            .app_data(server_state.clone())
+            .app_data(state.clone())
             .route("/state", web::get().to(get_state))
             .route("/ws", web::get().to(get_ws))
     })
@@ -119,14 +117,12 @@ async fn main() -> std::io::Result<()> {
     });
 
     // State update task.
-    let state_updater = state.clone();
     all_tasks.spawn(async move {
         loop {
             let Some(state) = state_rx.recv().await else {
                 return;
             };
 
-            *state_updater.state.lock().await = state.clone();
             state_watch_tx.send(state).unwrap();
         }
     });
