@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Server Test Page</title>
+  <script type="module" defer>
+    "use strict";
+
+    const statusElement = document.getElementById("websocket-status")
+    const dataElement = document.getElementById("websocket-data")
+
+    statusElement.innerText = "Not started"
+    dataElement.innerText = "--"
+
+    let ws = new WebSocket('ws://localhost:8080/ws')
+    ws.onerror = () => {
+      statusElement.innerText = "Error"
+      console.log("Websockets error")
+    }
+    ws.onopen = () => {
+      statusElement.innerText = "Opened"
+      console.log("Websockets opened")
+    }
+    ws.onmessage = (event) => {
+      dataElement.innerText = event.data
+      console.log("Websockets message", event)
+    }
+    ws.onclose = () => {
+      statusElement.innerText = "Closed"
+      console.log("Websockets closed")
+    }
+  </script>
+</head>
+<body>
+<h1>Thermopro HTTP Server test page</h1>
+<p>Websocket status:</p>
+<p id="websocket-status"></p>
+<p>Websocket data:</p>
+<p id="websocket-data"></p>
+</body>
+</html>
