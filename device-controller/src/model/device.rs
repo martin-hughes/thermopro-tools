@@ -6,7 +6,7 @@ pub enum TemperatureMode {
     Fahrenheit,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct TP25State {
     pub probes: [Probe; 4],
     pub temperature_mode: Option<TemperatureMode>,

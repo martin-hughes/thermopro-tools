@@ -51,7 +51,7 @@ fn alarm_threshold_to_json(threshold: AlarmThreshold) -> Value {
             json!({"mode": "upper_only", "upper": temp_to_string(u.max)})
         }
         AlarmThreshold::RangeLimit(r) => {
-            json!({"mode": "unknown", "upper": temp_to_string(r.max), "lower": temp_to_string(r.min)})
+            json!({"mode": "range", "upper": temp_to_string(r.max), "lower": temp_to_string(r.min)})
         }
     }
 }

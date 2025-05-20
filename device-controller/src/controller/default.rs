@@ -36,10 +36,13 @@ impl Controller {
         let saved_cmd_rqst_rx = Arc::new(Mutex::new(command_request_rx));
 
         loop {
-            state_update_tx
+            if state_update_tx
                 .send(get_device_state(&protected_device_state).await)
                 .await
-                .unwrap();
+                .is_err()
+            {
+                return;
+            }
 
             Self::handle_one_connection(
                 &protected_device_state,
@@ -78,7 +81,7 @@ impl Controller {
                     // TODO: Update the screen to say disconnected, try to reconnect, etc.
                     return;
                 };
-                let device_state = &mut protected_device_state.lock().await.clone();
+                let device_state = &mut protected_device_state.lock().await;
                 if transfer_tx
                     .send(Transfer::Notification(n.clone()))
                     .await
@@ -166,6 +169,18 @@ async fn handle_command_request(
                 _ => TemperatureMode::Celsius,
             };
             send_temp_mode_cmd(mode, device, transfer_tx).await?;
+        }
+        CommandRequest::SetTempMode(celsius) => {
+            send_temp_mode_cmd(
+                if celsius {
+                    TemperatureMode::Celsius
+                } else {
+                    TemperatureMode::Fahrenheit
+                },
+                device,
+                transfer_tx,
+            )
+            .await?;
         }
         CommandRequest::ReportAllProfiles => {
             send_query_profile(device, transfer_tx, 0).await?;

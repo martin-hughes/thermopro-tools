@@ -3,22 +3,39 @@ mod state_to_json;
 use crate::state_to_json::state_to_json;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::AggregatedMessage;
+use device_controller::controller::command_request::CommandRequest;
 use device_controller::controller::default::Controller;
 use device_controller::model::device::TP25State;
+use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
 use futures_util::StreamExt as _;
-use tokio::sync::mpsc::channel as tokio_channel;
+use serde::Deserialize;
+use tokio::sync::mpsc::{channel as tokio_channel, Sender};
 use tokio::sync::watch;
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 
 struct AppState {
     state_rx: Mutex<watch::Receiver<TP25State>>,
+    cmd_tx: Sender<CommandRequest>,
+}
+
+#[derive(Deserialize)]
+struct ModeData {
+    celsius: bool,
+}
+
+#[derive(Deserialize)]
+struct ProfileData {
+    probe_idx: u8,
+    alarm_low: Option<String>,
+    alarm_high: Option<String>,
 }
 
 impl AppState {
-    fn new(state_rx: watch::Receiver<TP25State>) -> Self {
+    fn new(state_rx: watch::Receiver<TP25State>, cmd_tx: Sender<CommandRequest>) -> Self {
         Self {
             state_rx: Mutex::new(state_rx),
+            cmd_tx,
         }
     }
 }
@@ -30,6 +47,67 @@ async fn get_state(data: web::Data<AppState>) -> impl Responder {
     HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(r.to_string())
+}
+
+async fn set_mode(data: web::Data<AppState>, json: web::Json<ModeData>) -> impl Responder {
+    if data
+        .cmd_tx
+        .send(CommandRequest::SetTempMode(json.celsius))
+        .await
+        .is_ok()
+    {
+        HttpResponse::Ok()
+    } else {
+        HttpResponse::InternalServerError()
+    }
+}
+
+async fn set_alarm(data: web::Data<AppState>, json: web::Json<ProfileData>) -> impl Responder {
+    let probe_idx = json.probe_idx;
+    if probe_idx > 3 {
+        return HttpResponse::BadRequest();
+    }
+    let alarm_low = match &json.alarm_low {
+        Some(s) => s.parse::<f32>().ok(),
+        None => None,
+    };
+    let alarm_high = match &json.alarm_high {
+        Some(s) => s.parse::<f32>().ok(),
+        None => None,
+    };
+
+    let alarm_threshold = match (alarm_low, alarm_high) {
+        (None, None) => AlarmThreshold::NoneSet,
+        (Some(_), None) => return HttpResponse::BadRequest(),
+        (None, Some(h)) => AlarmThreshold::UpperLimit(UpperLimitThreshold {
+            max: (h * 10_f32) as u16,
+        }),
+        (Some(l), Some(h)) => AlarmThreshold::RangeLimit(RangeLimitThreshold {
+            min: (l * 10_f32) as u16,
+            max: (h * 10_f32) as u16,
+        }),
+    };
+
+    if data
+        .cmd_tx
+        .send(CommandRequest::SetProfile(probe_idx, alarm_threshold))
+        .await
+        .is_err()
+    {
+        return HttpResponse::InternalServerError();
+    }
+
+    // Follow up straight away with a command to update the probe profile data.else
+    if data
+        .cmd_tx
+        .send(CommandRequest::ReportProfile(probe_idx))
+        .await
+        .is_ok()
+    {
+        HttpResponse::Ok()
+    } else {
+        HttpResponse::InternalServerError()
+    }
 }
 
 async fn get_ws(
@@ -92,11 +170,11 @@ async fn get_ws(
 async fn main() -> std::io::Result<()> {
     let (state_tx, mut state_rx) = tokio_channel(10);
     let (transfer_tx, mut transfer_rx) = tokio_channel(10);
-    let (_tx, ui_request_rx) = tokio_channel(10);
+    let (cmd_tx, ui_request_rx) = tokio_channel(10);
 
     let (state_watch_tx, state_watch_rx) = watch::channel(TP25State::default());
 
-    let state = web::Data::new(AppState::new(state_watch_rx));
+    let state = web::Data::new(AppState::new(state_watch_rx, cmd_tx));
 
     let mut all_tasks = JoinSet::new();
 
@@ -108,6 +186,8 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(state.clone())
             .route("/state", web::get().to(get_state))
+            .route("/mode", web::post().to(set_mode))
+            .route("/alarm", web::post().to(set_alarm))
             .route("/ws", web::get().to(get_ws))
     })
     .bind(("127.0.0.1", 8080))?
@@ -123,7 +203,9 @@ async fn main() -> std::io::Result<()> {
                 return;
             };
 
-            state_watch_tx.send(state).unwrap();
+            if state_watch_tx.send(state).is_err() {
+                return;
+            };
         }
     });
 
