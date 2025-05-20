@@ -110,6 +110,14 @@ async fn set_alarm(data: web::Data<AppState>, json: web::Json<ProfileData>) -> i
     }
 }
 
+async fn post_alarm_ack(data: web::Data<AppState>) -> impl Responder {
+    if data.cmd_tx.send(CommandRequest::AckAlarm).await.is_ok() {
+        HttpResponse::Ok()
+    } else {
+        HttpResponse::InternalServerError()
+    }
+}
+
 async fn get_ws(
     data: web::Data<AppState>,
     req: HttpRequest,
@@ -188,6 +196,7 @@ async fn main() -> std::io::Result<()> {
             .route("/state", web::get().to(get_state))
             .route("/mode", web::post().to(set_mode))
             .route("/alarm", web::post().to(set_alarm))
+            .route("/alarm_ack", web::post().to(post_alarm_ack))
             .route("/ws", web::get().to(get_ws))
     })
     .bind(("127.0.0.1", 8080))?

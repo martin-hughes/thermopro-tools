@@ -22,6 +22,7 @@ impl GetName for Notification {
 impl GetName for Command {
     fn get_name(&self) -> &'static str {
         match self.decoded {
+            CmdDecoded::AlarmAck => "Alarm Ack",
             CmdDecoded::Startup => "Startup",
             CmdDecoded::SetTempMode(_) => "Set Temp Mode",
             CmdDecoded::ReportProfile(_) => "Report Probe Profile",

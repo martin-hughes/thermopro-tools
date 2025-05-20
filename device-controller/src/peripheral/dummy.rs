@@ -88,6 +88,7 @@ impl TP25Writer for Peripheral {
                     decoded: SetProbeProfile,
                 });
             }
+            Decoded::AlarmAck => {} // Dummy device currently doesn't issue alarms
         };
         Ok(())
     }

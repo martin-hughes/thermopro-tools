@@ -17,6 +17,9 @@ pub enum Decoded {
 
     #[allow(dead_code)]
     SetProbeProfile(u8, AlarmThreshold),
+
+    #[allow(dead_code)]
+    AlarmAck,
 }
 
 #[derive(Clone)]
@@ -42,6 +45,13 @@ pub fn build_set_temp_mode_command(mode: TemperatureMode) -> Command {
             &[0x20, 0x01, 0x0f, 0x30]
         }),
         decoded: Decoded::SetTempMode(mode),
+    }
+}
+
+pub fn build_alarm_ack_cmd() -> Command {
+    Command {
+        raw: Bytes::from_static(&[0x27, 0x00, 0x27]),
+        decoded: Decoded::AlarmAck,
     }
 }
 

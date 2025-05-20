@@ -9,6 +9,7 @@ pub fn install_menu(c: &mut CursiveRunnable, request_tx: Sender<CommandRequest>)
     let tx_b = request_tx.clone();
     let tx_c = request_tx.clone();
     let tx_d = request_tx.clone();
+    let tx_e = request_tx.clone();
 
     c.menubar()
         .add_subtree(
@@ -23,7 +24,10 @@ pub fn install_menu(c: &mut CursiveRunnable, request_tx: Sender<CommandRequest>)
                         .unwrap();
                 })
                 .leaf("Report profile", move |c| report_profile_cb(c, &tx_c))
-                .leaf("Set profile", move |c| set_profile_cb(c, &tx_d)),
+                .leaf("Set profile", move |c| set_profile_cb(c, &tx_d))
+                .leaf("Acknowledge alarm", move |_| {
+                    tx_e.blocking_send(CommandRequest::AckAlarm).unwrap();
+                }),
         )
         .add_delimiter()
         .add_leaf("Quit", |s| s.quit());

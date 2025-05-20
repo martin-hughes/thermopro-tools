@@ -6,4 +6,5 @@ pub enum CommandRequest {
     ReportAllProfiles,
     ReportProfile(u8),
     SetProfile(u8, AlarmThreshold),
+    AckAlarm,
 }

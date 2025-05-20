@@ -2,7 +2,9 @@
 
 ## Description
 
-Instructs the thermometer to report the profile associated with a probe back to the app.
+Instructs the thermometer to report the profile associated with a probe back to the app. It appears that after startup,
+the device will report profiles set previously but will not alarm for them until they have been set again using the
+[0x23 command](./0x23-set-probe-profile.md). That is, profiles seem to be stored but inactive after a reboot.
 
 ## Example
 

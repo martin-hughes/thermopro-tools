@@ -10,6 +10,11 @@ A profile is the temperature it will alarm at. There are two broad types of prof
 * Range - alarms if the temperature is higher than the high temperature alarm, or lower than the low temperature
   alarm. (that is, the temperature should remain within the range)
 
+It seems that the device will store profiles when it is switched off. However, after turning back on the profiles seem
+to be "inactive" somehow - they are reported by the [0x24 command response](./0x24-report-probe-profile.md), but the
+device does not trigger an alarm when it normally would. The workaround is to send this command again after the device
+turns on.
+
 ## Example
 
 * Command: `23 06 04fa02900250 0b`
