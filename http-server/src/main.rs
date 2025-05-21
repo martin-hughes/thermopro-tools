@@ -7,6 +7,7 @@ use device_controller::controller::command_request::CommandRequest;
 use device_controller::controller::default::Controller;
 use device_controller::model::device::TP25State;
 use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
+use device_controller::peripheral::notification::calc_checksum;
 use futures_util::StreamExt as _;
 use serde::Deserialize;
 use tokio::sync::mpsc::{channel as tokio_channel, Sender};
@@ -29,6 +30,12 @@ struct ProfileData {
     probe_idx: u8,
     alarm_low: Option<String>,
     alarm_high: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct CustomCmdData {
+    cmd: String,
+    allow_wrong_checksum: Option<bool>,
 }
 
 impl AppState {
@@ -118,6 +125,51 @@ async fn post_alarm_ack(data: web::Data<AppState>) -> impl Responder {
     }
 }
 
+fn hex_to_bytes(s: &str) -> Option<Vec<u8>> {
+    if s.len() % 2 == 0 {
+        (0..s.len())
+            .step_by(2)
+            .map(|i| {
+                s.get(i..i + 2)
+                    .and_then(|sub| u8::from_str_radix(sub, 16).ok())
+            })
+            .collect()
+    } else {
+        None
+    }
+}
+
+async fn post_custom_cmd(
+    data: web::Data<AppState>,
+    json: web::Json<CustomCmdData>,
+) -> impl Responder {
+    if json.cmd.len() < 6 {
+        return HttpResponse::BadRequest();
+    }
+
+    let enforce_checksum = !matches!(json.allow_wrong_checksum, Some(true));
+    let Some(cmd_vec) = hex_to_bytes(&json.cmd) else {
+        return HttpResponse::BadRequest();
+    };
+
+    if enforce_checksum
+        && calc_checksum(&cmd_vec[..cmd_vec.len() - 1]) != cmd_vec[cmd_vec.len() - 1]
+    {
+        return HttpResponse::BadRequest();
+    }
+
+    if data
+        .cmd_tx
+        .send(CommandRequest::CustomCommand(cmd_vec))
+        .await
+        .is_ok()
+    {
+        HttpResponse::Ok()
+    } else {
+        HttpResponse::InternalServerError()
+    }
+}
+
 async fn get_ws(
     data: web::Data<AppState>,
     req: HttpRequest,
@@ -198,6 +250,7 @@ async fn main() -> std::io::Result<()> {
             .route("/alarm", web::post().to(set_alarm))
             .route("/alarm_ack", web::post().to(post_alarm_ack))
             .route("/ws", web::get().to(get_ws))
+            .route("/custom_cmd", web::post().to(post_custom_cmd))
     })
     .bind(("127.0.0.1", 8080))?
     .run();

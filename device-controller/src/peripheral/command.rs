@@ -20,6 +20,9 @@ pub enum Decoded {
 
     #[allow(dead_code)]
     AlarmAck,
+
+    #[allow(dead_code)]
+    Custom(Vec<u8>),
 }
 
 #[derive(Clone)]
@@ -52,6 +55,13 @@ pub fn build_alarm_ack_cmd() -> Command {
     Command {
         raw: Bytes::from_static(&[0x27, 0x00, 0x27]),
         decoded: Decoded::AlarmAck,
+    }
+}
+
+pub fn build_custom_cmd(raw: Vec<u8>) -> Command {
+    Command {
+        raw: raw.clone().into(),
+        decoded: Decoded::Custom(raw),
     }
 }
 

@@ -7,4 +7,5 @@ pub enum CommandRequest {
     ReportProfile(u8),
     SetProfile(u8, AlarmThreshold),
     AckAlarm,
+    CustomCommand(Vec<u8>),
 }

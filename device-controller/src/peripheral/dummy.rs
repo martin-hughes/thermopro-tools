@@ -89,6 +89,7 @@ impl TP25Writer for Peripheral {
                 });
             }
             Decoded::AlarmAck => {} // Dummy device currently doesn't issue alarms
+            Decoded::Custom(_) => {} // Do nothing for custom commands
         };
         Ok(())
     }

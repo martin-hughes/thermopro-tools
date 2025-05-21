@@ -7,7 +7,7 @@ use crate::controller::command_request::CommandRequest;
 use crate::model::device::{TP25State, TemperatureMode};
 use crate::model::probe::{AlarmState, AlarmThreshold};
 use crate::peripheral::command::{
-    build_alarm_ack_cmd, build_report_profile_cmd, build_set_profile_cmd,
+    build_alarm_ack_cmd, build_custom_cmd, build_report_profile_cmd, build_set_profile_cmd,
     build_set_temp_mode_command, build_startup_command, Command,
 };
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
@@ -201,6 +201,9 @@ async fn handle_command_request(
         CommandRequest::AckAlarm => {
             send_alarm_ack_cmd(device, transfer_tx).await?;
         }
+        CommandRequest::CustomCommand(bytes) => {
+            send_custom_cmd(device, transfer_tx, bytes).await?;
+        }
     };
     Ok(())
 }
@@ -230,6 +233,14 @@ async fn send_alarm_ack_cmd(
     transfer_tx: &Sender<Transfer>,
 ) -> btleplug::Result<()> {
     send_cmd(device, transfer_tx, build_alarm_ack_cmd()).await
+}
+
+async fn send_custom_cmd(
+    device: &impl TP25Writer,
+    transfer_tx: &Sender<Transfer>,
+    bytes: Vec<u8>,
+) -> btleplug::Result<()> {
+    send_cmd(device, transfer_tx, build_custom_cmd(bytes)).await
 }
 
 async fn get_device_state(protected: &ProtectedDeviceState) -> TP25State {

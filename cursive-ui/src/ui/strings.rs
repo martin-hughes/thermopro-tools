@@ -27,6 +27,7 @@ impl GetName for Command {
             CmdDecoded::SetTempMode(_) => "Set Temp Mode",
             CmdDecoded::ReportProfile(_) => "Report Probe Profile",
             CmdDecoded::SetProbeProfile(_, _) => "Set Probe Profile",
+            CmdDecoded::Custom(_) => "Custom command",
         }
     }
 }
