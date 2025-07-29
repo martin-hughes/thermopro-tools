@@ -13,6 +13,7 @@ use crate::peripheral::command::{
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
 use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, TemperatureData};
 use crate::peripheral::transfer::Transfer;
+use log::info;
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -28,6 +29,7 @@ impl Controller {
         transfer_tx: Sender<Transfer>,
         command_request_rx: Receiver<CommandRequest>,
     ) {
+        info!("Starting Controller");
         let device_state = TP25State {
             connected: false,
             ..TP25State::default()

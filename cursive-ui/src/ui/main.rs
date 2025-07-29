@@ -10,6 +10,8 @@ use cursive::views::{Dialog, DummyView, LinearLayout, Panel};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
 use device_controller::model::probe::Probe;
+use log::info;
+use log::LevelFilter::Warn;
 use std::thread;
 use tokio::sync::mpsc::Sender;
 
@@ -35,6 +37,14 @@ pub fn update_probe(c: &mut Cursive, index: usize, probe: &Probe) {
 }
 
 pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRequest>) {
+    // Without the following line, Cursive spams Debug level logs about its layout calculations,
+    // which we don't need to see.
+    cursive::logger::set_filter_levels_from_env();
+    cursive::logger::set_internal_filter_level(Warn);
+    cursive::logger::init();
+
+    info!("Starting UI");
+
     let mut siv = cursive::default();
     install_menu(&mut siv, request_tx);
     siv.set_autohide_menu(false);
@@ -69,6 +79,8 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
 
     siv.add_global_callback('q', |s| s.quit());
     siv.add_global_callback(Key::Esc, |s| s.select_menubar());
+    siv.add_global_callback('~', Cursive::toggle_debug_console);
+
     /*
         siv.set_screen(screen_2);
         siv.add_layer(Dialog::info("Help!"));

@@ -591,6 +591,7 @@ dependencies = [
  "cursive",
  "cursive_table_view",
  "device_controller",
+ "log",
  "tokio",
 ]
 
@@ -750,6 +751,7 @@ dependencies = [
  "btleplug",
  "bytes",
  "futures",
+ "log",
  "tokio",
  "trait-variant",
  "uuid",

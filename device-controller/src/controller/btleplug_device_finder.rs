@@ -5,6 +5,7 @@ use btleplug::api::{
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::Stream;
+use log::{debug, info, trace, warn};
 use std::error::Error;
 use std::pin::Pin;
 use std::time::Duration;
@@ -34,31 +35,40 @@ pub async fn get_device() -> (BtleplugReceiver, BtleplugWriter) {
 }
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
+
+    info!("Starting scan...");
     for adapter in adapter_list.iter() {
-        // TODO: Logging
-        //println!("Starting scan...");
         let _ = tasks.spawn(find_device_from_adapter(adapter.clone()));
     }
+    debug!("All adapter scan tasks spawned");
 
     let p = tasks.join_next().await.unwrap().unwrap();
-    // TODO: Logging
-    //println!("Found device");
+    info!("Found device");
     p
 }
 
 async fn find_device_from_adapter(adapter: Adapter) -> Peripheral {
+    let adapter_name = adapter
+        .adapter_info()
+        .await
+        .unwrap_or("<Unknown>".to_string());
+    debug!("Scanning on adapter {:?}", adapter_name);
+
     adapter
         .start_scan(ScanFilter::default())
         .await
         .expect("Can't scan BLE adapter for connected devices...");
 
     loop {
+        // TODO: Is it necessary to sleep at the beginning here?
+        // I can't remember if there was a stability issue from not sleeping.
         time::sleep(Duration::from_secs(2)).await;
         let peripherals = adapter.peripherals().await.unwrap();
 
         // All peripheral devices in range.
         for peripheral in peripherals.iter() {
             if check_peripheral(peripheral).await {
+                debug!("Found acceptable device on adapter {:?}", adapter_name);
                 return peripheral.clone();
             }
         }
@@ -72,33 +82,32 @@ async fn check_peripheral(peripheral: &Peripheral) -> bool {
         .unwrap()
         .local_name
         .unwrap_or(String::from("(peripheral name unknown)"));
-    // TODO: Logging
-    /*info!(
-        "Peripheral {:?} is connected: {:?}",
+    debug!(
+        "Checking peripheral {:?}. Connected? {:?}",
         &local_name, is_connected
-    );*/
+    );
     // Check if it's the peripheral we want.
     if is_relevant_name(local_name.as_str()) {
-        // TODO: Logging
-        /*info!("Found matching peripheral {:?}...", &local_name);*/
+        debug!("Peripheral name {:?} matches...", &local_name);
         if !is_connected {
+            trace!("Not connected, attempting to connect");
             // Connect if we aren't already connected.
-            if let Err(_) = peripheral.connect().await {
-                // TODO: Logging
-                /*warn!("Error connecting to peripheral, skipping: {}", err);*/
+            if let Err(err) = peripheral.connect().await {
+                warn!("Error connecting to peripheral, skipping: {}", err);
                 return false;
             }
         }
         let is_connected = peripheral.is_connected().await.unwrap();
-        // TODO: Logging
-        /*info!(
-            "Now connected ({:?}) to peripheral {:?}.",
-            is_connected, &local_name
-        );*/
-        is_connected && has_required_characteristics(&peripheral).await
+
+        if is_connected {
+            trace!("Connected, checking characteristics");
+            has_required_characteristics(peripheral).await
+        } else {
+            warn!("Peripheral was connected, now is not - skipping.");
+            false
+        }
     } else {
-        // TODO: Logging
-        //info!("Skipping unknown peripheral {:?}", peripheral);
+        debug!("Skipping unknown peripheral {:?}", peripheral);
         false
     }
 }
@@ -114,9 +123,9 @@ pub fn is_relevant_name(name: &str) -> bool {
 }
 
 pub async fn has_required_characteristics(device: &Peripheral) -> bool {
-    // TODO: Logging
-    //info!("Discover peripheral services...");
+    trace!("Discover peripheral services...");
     if device.discover_services().await.is_err() {
+        warn!("Failed to discover peripheral services");
         return false;
     }
 
@@ -125,12 +134,14 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
         .iter()
         .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
     else {
+        debug!("Did not find appropriate notify characteristic");
         return false;
     };
     let Some(write_characteristic) = characteristics
         .iter()
         .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
     else {
+        debug!("Did not find appropriate write characteristic");
         return false;
     };
 
@@ -138,7 +149,12 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
     //info!("Checking characteristic {:?}", notify_characteristic);
     // Subscribe to notifications from the characteristic with the selected
     // UUID.
-    is_notify_characteristic(notify_characteristic) && is_write_characteristic(write_characteristic)
+    let r = is_notify_characteristic(notify_characteristic)
+        && is_write_characteristic(write_characteristic);
+    if !r {
+        debug!("Characteristics did not have appropriate flags set");
+    }
+    r
 }
 
 fn is_notify_characteristic(characteristic: &Characteristic) -> bool {
@@ -156,6 +172,8 @@ type BtleNotificationStream =
 pub async fn subscribe_to_notifications(
     device: &Peripheral,
 ) -> Result<BtleNotificationStream, Box<dyn Error>> {
+    // TODO: `discover_services` should already have been done, is it necessary to repeat it?
+
     device.discover_services().await?;
     let characteristics = device.characteristics();
     let notify_characteristic = characteristics
@@ -163,18 +181,19 @@ pub async fn subscribe_to_notifications(
         .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
         .unwrap();
 
-    // TODO: Logging
-    //info!("Checking characteristic {:?}", notify_characteristic);
+    // TODO: We should already have checked the characteristic, is it necessary to repeat it?
+    trace!("Checking characteristic {:?}", notify_characteristic);
     // Subscribe to notifications from the characteristic with the selected
     // UUID.
     if !is_notify_characteristic(notify_characteristic) {
+        warn!("Notify characteristic is not valid");
         return Err("Bad characteristics".into());
     }
-    // TODO: Logging
-    /*info!(
-        "Subscribing to characteristic {:?}",
+
+    info!(
+        "Subscribing to notify characteristic {:?}",
         notify_characteristic.uuid
-    );*/
+    );
     device.subscribe(notify_characteristic).await?;
 
     Ok(device.notifications().await)
