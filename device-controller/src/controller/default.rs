@@ -5,7 +5,8 @@ use crate::controller::dummy_device_finder::get_device;
 use crate::controller::btleplug_device_finder::get_device;
 use crate::controller::command_request::CommandRequest;
 use crate::model::device::{TP25State, TemperatureMode};
-use crate::model::probe::{AlarmState, AlarmThreshold};
+use crate::model::probe::ProbeIdx::*;
+use crate::model::probe::{AlarmState, AlarmThreshold, ProbeIdx};
 use crate::peripheral::command::{
     build_alarm_ack_cmd, build_custom_cmd, build_report_profile_cmd, build_set_profile_cmd,
     build_set_temp_mode_command, build_startup_command, Command,
@@ -185,10 +186,10 @@ async fn handle_command_request(
             .await?;
         }
         CommandRequest::ReportAllProfiles => {
-            send_query_profile(device, transfer_tx, 0).await?;
-            send_query_profile(device, transfer_tx, 1).await?;
-            send_query_profile(device, transfer_tx, 2).await?;
-            send_query_profile(device, transfer_tx, 3).await?;
+            send_query_profile(device, transfer_tx, Probe1).await?;
+            send_query_profile(device, transfer_tx, Probe2).await?;
+            send_query_profile(device, transfer_tx, Probe3).await?;
+            send_query_profile(device, transfer_tx, Probe4).await?;
         }
         CommandRequest::ReportProfile(idx) => {
             send_query_profile(device, transfer_tx, idx).await?;
@@ -262,7 +263,8 @@ fn handle_temps(temps: &TemperatureData, device_state: &mut TP25State) {
 }
 
 fn handle_probe_profile(profile_data: &ProbeProfileData, device_state: &mut TP25State) {
-    device_state.probes[(profile_data.idx - 1) as usize].alarm_threshold = profile_data.threshold;
+    device_state.probes[profile_data.idx.as_zero_based() as usize].alarm_threshold =
+        profile_data.threshold;
 }
 
 async fn send_cmd(
@@ -280,23 +282,17 @@ async fn send_cmd(
 async fn send_query_profile(
     device: &impl TP25Writer,
     transfer_tx: &Sender<Transfer>,
-    idx: u8,
+    idx: ProbeIdx,
 ) -> btleplug::Result<()> {
-    if idx > 3 {
-        panic!("Invalid profile index");
-    }
     send_cmd(device, transfer_tx, build_report_profile_cmd(idx)).await
 }
 
 async fn send_set_profile(
     device: &impl TP25Writer,
     transfer_tx: &Sender<Transfer>,
-    idx: u8,
+    idx: ProbeIdx,
     threshold: AlarmThreshold,
 ) -> btleplug::Result<()> {
-    if idx > 3 {
-        panic!("Invalid profile index");
-    }
     if matches!(threshold, AlarmThreshold::Unknown) {
         // TODO: Should probably enforce this with a different type...
         panic!("Can't send Unknown alarm threshold");

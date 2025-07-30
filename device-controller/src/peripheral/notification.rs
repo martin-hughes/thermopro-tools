@@ -1,5 +1,5 @@
 use crate::model::device::TemperatureMode;
-use crate::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
+use crate::model::probe::{AlarmThreshold, ProbeIdx, RangeLimitThreshold, UpperLimitThreshold};
 use bcd_convert::BcdNumber;
 use bytes::Bytes;
 
@@ -45,7 +45,7 @@ pub enum Decoded {
 
 #[derive(Clone, Debug)]
 pub struct ProbeProfileData {
-    pub idx: u8,
+    pub idx: ProbeIdx,
     pub threshold: AlarmThreshold,
 }
 
@@ -104,7 +104,7 @@ fn temp_from_bytes(val: [u8; 2]) -> Result<Option<u16>, &'static str> {
 }
 
 fn report_probe_profile(raw: &Bytes) -> Decoded {
-    let idx = raw[2];
+    let idx = ProbeIdx::from_one_based(raw[2]);
     let high_threshold = temp_from_bytes([raw[4], raw[5]]);
     let low_threshold = temp_from_bytes([raw[6], raw[7]]);
 

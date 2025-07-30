@@ -72,17 +72,14 @@ impl TP25Writer for Peripheral {
                 state.mode = mode;
             }
             Decoded::ReportProfile(idx) => {
-                let t = state.thresholds[idx as usize];
+                let t = state.thresholds[idx.as_zero_based() as usize];
                 state.queued_notifications.push_back(Notification {
                     raw: mock_raw_bytes(),
-                    decoded: ReportProbeProfile(ProbeProfileData {
-                        idx: idx + 1,
-                        threshold: t,
-                    }),
+                    decoded: ReportProbeProfile(ProbeProfileData { idx, threshold: t }),
                 });
             }
             Decoded::SetProbeProfile(idx, profile) => {
-                state.thresholds[idx as usize] = profile;
+                state.thresholds[idx.as_zero_based() as usize] = profile;
                 state.queued_notifications.push_back(Notification {
                     raw: mock_raw_bytes(),
                     decoded: SetProbeProfile,

@@ -50,10 +50,6 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
     siv.set_autohide_menu(false);
     siv.set_window_title("ThermoPro TP25");
 
-    /*let screen_1 = siv.add_screen();
-        let screen_2 = siv.add_screen();
-        siv.set_screen(screen_1);
-    */
     siv.add_layer(
         LinearLayout::vertical()
             .child(make_status_view())
@@ -81,10 +77,6 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
     siv.add_global_callback(Key::Esc, |s| s.select_menubar());
     siv.add_global_callback('~', Cursive::toggle_debug_console);
 
-    /*
-        siv.set_screen(screen_2);
-        siv.add_layer(Dialog::info("Help!"));
-    */
     let cb_sink = siv.cb_sink().clone();
     thread::spawn(move || receiver_thread(ui_command_receiver, cb_sink));
 

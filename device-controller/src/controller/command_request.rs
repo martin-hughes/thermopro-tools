@@ -1,11 +1,11 @@
-use crate::model::probe::AlarmThreshold;
+use crate::model::probe::{AlarmThreshold, ProbeIdx};
 
 pub enum CommandRequest {
     ToggleTempMode,
     SetTempMode(bool), // True => celsius, false => Fahrenheit
     ReportAllProfiles,
-    ReportProfile(u8),
-    SetProfile(u8, AlarmThreshold),
+    ReportProfile(ProbeIdx),
+    SetProfile(ProbeIdx, AlarmThreshold),
     AckAlarm,
     CustomCommand(Vec<u8>),
 }

@@ -1,5 +1,5 @@
 use crate::model::device::TemperatureMode;
-use crate::model::probe::AlarmThreshold;
+use crate::model::probe::{AlarmThreshold, ProbeIdx};
 use crate::peripheral::notification::calc_checksum;
 use bytes::Bytes;
 
@@ -13,10 +13,10 @@ pub enum Decoded {
     SetTempMode(TemperatureMode),
 
     #[allow(dead_code)]
-    ReportProfile(u8),
+    ReportProfile(ProbeIdx),
 
     #[allow(dead_code)]
-    SetProbeProfile(u8, AlarmThreshold),
+    SetProbeProfile(ProbeIdx, AlarmThreshold),
 
     #[allow(dead_code)]
     AlarmAck,
@@ -65,12 +65,8 @@ pub fn build_custom_cmd(raw: Vec<u8>) -> Command {
     }
 }
 
-pub fn build_report_profile_cmd(probe_idx: u8) -> Command {
-    if probe_idx > 3 {
-        panic!("Invalid probe index");
-    }
-
-    let mut raw = vec![0x24, 0x01, probe_idx + 1];
+pub fn build_report_profile_cmd(probe_idx: ProbeIdx) -> Command {
+    let mut raw = vec![0x24, 0x01, probe_idx.as_one_based()];
     let checksum = calc_checksum(raw.as_slice());
     raw.push(checksum);
 
@@ -80,8 +76,8 @@ pub fn build_report_profile_cmd(probe_idx: u8) -> Command {
     }
 }
 
-pub fn build_set_profile_cmd(probe_idx: u8, threshold: AlarmThreshold) -> Command {
-    let mut raw = vec![0x23, 0x06, probe_idx + 1, 0xcc];
+pub fn build_set_profile_cmd(probe_idx: ProbeIdx, threshold: AlarmThreshold) -> Command {
+    let mut raw = vec![0x23, 0x06, probe_idx.as_one_based(), 0xcc];
 
     match threshold {
         AlarmThreshold::Unknown | AlarmThreshold::NoneSet => {

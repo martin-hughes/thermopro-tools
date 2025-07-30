@@ -2,7 +2,9 @@ use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView, ListView, SelectView};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
-use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
+use device_controller::model::probe::{
+    AlarmThreshold, ProbeIdx, RangeLimitThreshold, UpperLimitThreshold,
+};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 
@@ -73,10 +75,11 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
                     c2.add_layer(Dialog::info("Probe number invalid!"));
                     return;
                 };
-                if num == 0 || num > 4 {
+
+                let Ok(probe_idx) = ProbeIdx::try_from_one_based(num) else {
                     c2.add_layer(Dialog::info("Probe number invalid!"));
                     return;
-                }
+                };
 
                 let upper_num_r = upper_str.parse::<u16>();
                 let lower_num_r = lower_str.parse::<u16>();
@@ -104,7 +107,7 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
                         })
                     }
                 };
-                let r = CommandRequest::SetProfile(num - 1, at);
+                let r = CommandRequest::SetProfile(probe_idx, at);
                 tx_cb.blocking_send(r).unwrap();
             }),
     )

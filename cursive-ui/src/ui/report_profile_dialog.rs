@@ -2,6 +2,7 @@ use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
+use device_controller::model::probe::ProbeIdx;
 use tokio::sync::mpsc::Sender;
 
 pub fn report_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
@@ -21,13 +22,14 @@ pub fn report_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
                     c2.add_layer(Dialog::info("Probe number invalid!"));
                     return;
                 };
-                if num == 0 || num > 4 {
+
+                let Ok(probe_idx) = ProbeIdx::try_from_one_based(num) else {
                     c2.add_layer(Dialog::info("Probe number invalid!"));
-                } else {
-                    tx_cb
-                        .blocking_send(CommandRequest::ReportProfile(num - 1))
-                        .unwrap()
-                }
+                    return;
+                };
+                tx_cb
+                    .blocking_send(CommandRequest::ReportProfile(probe_idx))
+                    .unwrap()
             }),
     )
 }
