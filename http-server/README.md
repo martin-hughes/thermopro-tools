@@ -111,7 +111,9 @@ Content-Type: application/json
 {"probe_idx": 1, "alarm_high": "35.1", "alarm_low": "28.0"}
 ```
 
-* `probe_idx` - mandatory. Zero-based index of the probe to set an alarm for. (Must be <= 3, as the TP25 has 4 probes.)
+* `probe_idx` - mandatory. *Zero-based* index of the probe to set an alarm for. (Must be <= 3, as the TP25 has 4
+  probes.)
+  * This is zero-based to be consistent with the JSON state object, which uses a plain array (and arrays are zero-based)
 * `alarm_high` - optional. The high temperature of the alarm to set, in celsius. If the temperature goes above this
   value, the alarm is triggered
 * `alarm_low` - optional. The low temperature of the alarm to set, in celsius. If the temperature goes below this

@@ -6,7 +6,9 @@ use actix_ws::AggregatedMessage;
 use device_controller::controller::command_request::CommandRequest;
 use device_controller::controller::default::Controller;
 use device_controller::model::device::TP25State;
-use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
+use device_controller::model::probe::{
+    AlarmThreshold, ProbeIdx, RangeLimitThreshold, UpperLimitThreshold,
+};
 use device_controller::peripheral::notification::calc_checksum;
 use futures_util::StreamExt as _;
 use serde::Deserialize;
@@ -70,10 +72,9 @@ async fn set_mode(data: web::Data<AppState>, json: web::Json<ModeData>) -> impl 
 }
 
 async fn set_alarm(data: web::Data<AppState>, json: web::Json<ProfileData>) -> impl Responder {
-    let probe_idx = json.probe_idx;
-    if probe_idx > 3 {
+    let Ok(probe_idx) = ProbeIdx::try_from_zero_based(json.probe_idx) else {
         return HttpResponse::BadRequest();
-    }
+    };
     let alarm_low = match &json.alarm_low {
         Some(s) => s.parse::<f32>().ok(),
         None => None,
