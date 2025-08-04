@@ -29,14 +29,14 @@ impl ProbeView {
         };
 
         let at = match p.alarm_threshold {
-            AlarmThreshold::Unknown => StyledString::plain("Alarm threshold unknown"),
-            AlarmThreshold::NoneSet => StyledString::plain("No alarm set"),
-            AlarmThreshold::UpperLimit(ult) => {
+            None => StyledString::plain("Alarm threshold unknown"),
+            Some(AlarmThreshold::NoneSet) => StyledString::plain("No alarm set"),
+            Some(AlarmThreshold::UpperLimit(ult)) => {
                 let mut l = StyledString::plain("Upper limit alarm ");
                 l.append(ult.max.to_string());
                 l
             }
-            AlarmThreshold::RangeLimit(rlt) => {
+            Some(AlarmThreshold::RangeLimit(rlt)) => {
                 let mut l = StyledString::plain("Range limit alarm ");
                 l.append(rlt.min.to_string());
                 l.append(" -> ");

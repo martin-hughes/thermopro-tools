@@ -5,7 +5,7 @@ use btleplug::api::{
 };
 use btleplug::platform::{Adapter, Manager, Peripheral};
 use futures::Stream;
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 use std::error::Error;
 use std::pin::Pin;
 use std::time::Duration;
@@ -13,15 +13,18 @@ use tokio::task::JoinSet;
 use tokio::time;
 use uuid::Uuid;
 
-pub async fn get_device() -> (BtleplugReceiver, BtleplugWriter) {
+pub async fn get_device() -> Result<(BtleplugReceiver, BtleplugWriter), ()> {
     let Ok(manager) = Manager::new().await else {
-        panic!("No adapters found");
+        error!("No adapters found");
+        return Err(());
     };
     let Ok(adapter_list) = manager.adapters().await else {
-        panic!("No adapters found");
+        error!("No adapters found");
+        return Err(());
     };
     if adapter_list.is_empty() {
-        panic!("No Bluetooth adapters found");
+        error!("No Bluetooth adapters found");
+        return Err(());
     }
 
     let device = find_device(adapter_list).await;
@@ -31,8 +34,9 @@ pub async fn get_device() -> (BtleplugReceiver, BtleplugWriter) {
     let reader = BtleplugReceiver::new(notifications.unwrap());
     let writer = BtleplugWriter::new(device, device_writer);
 
-    (reader, writer)
+    Ok((reader, writer))
 }
+
 async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     let mut tasks = JoinSet::new();
 

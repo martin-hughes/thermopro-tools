@@ -43,14 +43,14 @@ fn temp_to_string(temp: u16) -> String {
     format!("{:.1}", temp as f32 / 10.0)
 }
 
-fn alarm_threshold_to_json(threshold: AlarmThreshold) -> Value {
+fn alarm_threshold_to_json(threshold: Option<AlarmThreshold>) -> Value {
     match threshold {
-        AlarmThreshold::Unknown => json!({"mode": "unknown"}),
-        AlarmThreshold::NoneSet => json!({"mode": "none_set"}),
-        AlarmThreshold::UpperLimit(u) => {
+        None => json!({"mode": "unknown"}),
+        Some(AlarmThreshold::NoneSet) => json!({"mode": "none_set"}),
+        Some(AlarmThreshold::UpperLimit(u)) => {
             json!({"mode": "upper_only", "upper": temp_to_string(u.max)})
         }
-        AlarmThreshold::RangeLimit(r) => {
+        Some(AlarmThreshold::RangeLimit(r)) => {
             json!({"mode": "range", "upper": temp_to_string(r.max), "lower": temp_to_string(r.min)})
         }
     }

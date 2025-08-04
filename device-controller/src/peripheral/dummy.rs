@@ -33,7 +33,7 @@ impl Peripheral {
                 temp: 0,
                 mode: TemperatureMode::Celsius,
                 queued_notifications: VecDeque::new(),
-                thresholds: [AlarmThreshold::default(); 4],
+                thresholds: [AlarmThreshold::NoneSet; 4],
             })),
         }
     }

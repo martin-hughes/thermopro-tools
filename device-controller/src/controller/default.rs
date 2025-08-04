@@ -14,7 +14,7 @@ use crate::peripheral::command::{
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
 use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, TemperatureData};
 use crate::peripheral::transfer::Transfer;
-use log::info;
+use log::{debug, info};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -44,10 +44,24 @@ impl Controller {
                 .await
                 .is_err()
             {
+                debug!("Controller stopping as unable to send state update");
                 return;
             }
 
+            let Ok((peripheral_rx, peripheral_tx)) = get_device().await else {
+                // `get_device` only errors for unrecoverable errors such as no Bluetooth adapters.
+                // If it merely can't find a decice, it keeps waiting. Therefore an error return
+                // means there's no point continuing.
+                debug!("Device search failed, so controller exiting");
+                return;
+            };
+            {
+                protected_device_state.lock().await.connected = true;
+            }
+
             Self::handle_one_connection(
+                peripheral_rx,
+                peripheral_tx,
                 &protected_device_state,
                 &state_update_tx,
                 &transfer_tx,
@@ -61,16 +75,13 @@ impl Controller {
     }
 
     async fn handle_one_connection(
+        mut peripheral_rx: impl TP25Receiver + 'static,
+        peripheral_tx: impl TP25Writer + 'static + Sync,
         protected_device_state: &ProtectedDeviceState,
         state_update_tx: &Sender<TP25State>,
         transfer_tx: &Sender<Transfer>,
         command_request_rx: Arc<Mutex<Receiver<CommandRequest>>>,
     ) {
-        let (mut peripheral_rx, peripheral_tx) = get_device().await;
-        {
-            protected_device_state.lock().await.connected = true;
-        }
-
         let protected_device_state = protected_device_state.clone();
         let protected_device_state_b = protected_device_state.clone();
         let transfer_tx = transfer_tx.clone();
@@ -195,10 +206,6 @@ async fn handle_command_request(
             send_query_profile(device, transfer_tx, idx).await?;
         }
         CommandRequest::SetProfile(idx, profile) => {
-            let profile = match profile {
-                AlarmThreshold::Unknown => AlarmThreshold::NoneSet,
-                _ => profile,
-            };
             send_set_profile(device, transfer_tx, idx, profile).await?;
         }
         CommandRequest::AckAlarm => {
@@ -264,7 +271,7 @@ fn handle_temps(temps: &TemperatureData, device_state: &mut TP25State) {
 
 fn handle_probe_profile(profile_data: &ProbeProfileData, device_state: &mut TP25State) {
     device_state.probes[profile_data.idx.as_zero_based() as usize].alarm_threshold =
-        profile_data.threshold;
+        Some(profile_data.threshold);
 }
 
 async fn send_cmd(
@@ -293,9 +300,5 @@ async fn send_set_profile(
     idx: ProbeIdx,
     threshold: AlarmThreshold,
 ) -> btleplug::Result<()> {
-    if matches!(threshold, AlarmThreshold::Unknown) {
-        // TODO: Should probably enforce this with a different type...
-        panic!("Can't send Unknown alarm threshold");
-    }
     send_cmd(device, transfer_tx, build_set_profile_cmd(idx, threshold)).await
 }

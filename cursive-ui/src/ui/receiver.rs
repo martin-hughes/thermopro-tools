@@ -12,12 +12,15 @@ pub fn receiver_thread(receiver: CommandReceiver, cb_sink: CbSink) {
         let Ok(command) = receiver.recv() else {
             return;
         };
-        match command {
-            UiCommand::UpdateState(s) => cb_sink.send(Box::new(|c| update_state(c, s))).unwrap(),
-            UiCommand::UpdateTransferLog(t) => cb_sink
-                .send(Box::new(|c| update_transfer_log(t, c)))
-                .unwrap(),
-            UiCommand::Quit => cb_sink.send(Box::new(|c| c.quit())).unwrap(),
+        let f = match command {
+            UiCommand::UpdateState(s) => cb_sink.send(Box::new(|c| update_state(c, s))),
+            UiCommand::UpdateTransferLog(t) => {
+                cb_sink.send(Box::new(|c| update_transfer_log(t, c)))
+            }
+            UiCommand::Quit => cb_sink.send(Box::new(|c| c.quit())),
+        };
+        if f.is_err() {
+            return;
         }
     }
 }

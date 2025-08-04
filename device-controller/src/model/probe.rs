@@ -17,10 +17,8 @@ pub struct RangeLimitThreshold {
     pub max: u16,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub enum AlarmThreshold {
-    #[default]
-    Unknown,
     NoneSet,
     UpperLimit(UpperLimitThreshold),
     RangeLimit(RangeLimitThreshold),
@@ -30,7 +28,7 @@ pub enum AlarmThreshold {
 pub struct Probe {
     pub temperature: Option<u16>,
     pub alarm: AlarmState,
-    pub alarm_threshold: AlarmThreshold,
+    pub alarm_threshold: Option<AlarmThreshold>,
 }
 
 #[derive(Clone, Copy, Debug)]

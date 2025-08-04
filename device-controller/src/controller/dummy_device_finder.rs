@@ -1,6 +1,6 @@
 use crate::peripheral::dummy::Peripheral;
 
-pub async fn get_device() -> (Peripheral, Peripheral) {
+pub async fn get_device() -> Result<(Peripheral, Peripheral), ()> {
     let p = Peripheral::new();
-    (p.clone(), p)
+    Ok((p.clone(), p))
 }

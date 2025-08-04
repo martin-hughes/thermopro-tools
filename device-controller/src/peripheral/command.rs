@@ -80,7 +80,7 @@ pub fn build_set_profile_cmd(probe_idx: ProbeIdx, threshold: AlarmThreshold) -> 
     let mut raw = vec![0x23, 0x06, probe_idx.as_one_based(), 0xcc];
 
     match threshold {
-        AlarmThreshold::Unknown | AlarmThreshold::NoneSet => {
+        AlarmThreshold::NoneSet => {
             raw.push(0xff);
             raw.push(0xff);
             raw.push(0xff);
