@@ -75,7 +75,8 @@ fn make_notification(raw: &Bytes, length: usize, inner_conversion: InnerConversi
         return Decoded::Unknown;
     }
 
-    // At this point, we know the notification has the correct format, so these inner conversion does not need to do any checking.
+    // At this point, we know the notification has the correct format, so these inner conversion do not need to do any
+    // checking.
     inner_conversion(raw)
 }
 
@@ -86,7 +87,7 @@ pub fn calc_checksum(bytes: &[u8]) -> u8 {
 }
 
 fn startup(_: &Bytes) -> Decoded {
-    // There is byte of value, but its purpose is currently unknown.
+    // There is a byte of value, but its purpose is currently unknown.
     Decoded::Startup
 }
 

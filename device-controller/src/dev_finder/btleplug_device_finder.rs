@@ -13,32 +13,41 @@ use tokio::task::JoinSet;
 use tokio::time;
 use uuid::Uuid;
 
-pub async fn get_device() -> Result<(BtleplugReceiver, BtleplugWriter), ()> {
+fn log_err_and_ret(s: &'static str) -> &'static str {
+    error!("{}", s);
+    s
+}
+
+pub async fn get_device() -> Result<(BtleplugReceiver, BtleplugWriter), Box<dyn Error>> {
     let Ok(manager) = Manager::new().await else {
-        error!("No adapters found");
-        return Err(());
+        return Err(log_err_and_ret("No adapters found").into());
     };
     let Ok(adapter_list) = manager.adapters().await else {
-        error!("No adapters found");
-        return Err(());
+        return Err(log_err_and_ret("No adapters found").into());
     };
     if adapter_list.is_empty() {
-        error!("No Bluetooth adapters found");
-        return Err(());
+        return Err(log_err_and_ret("No Bluetooth adapters found").into());
     }
 
-    let device = find_device(adapter_list).await;
-    let notifications = subscribe_to_notifications(&device).await.unwrap();
-    let device_writer = get_write_characteristic(&device).await.unwrap();
+    let device = find_device(adapter_list)
+        .await
+        .ok_or("Device find failed")?;
+    let notifications = subscribe_to_notifications(&device).await?;
+    let device_writer = get_write_characteristic(&device).await?;
 
-    let reader = BtleplugReceiver::new(notifications.unwrap());
+    let reader = BtleplugReceiver::new(notifications?);
     let writer = BtleplugWriter::new(device, device_writer);
 
     Ok((reader, writer))
 }
 
-async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
+// Returning None here implies an actual error has occurred, as we will wait forever to find a device.
+async fn find_device(adapter_list: Vec<Adapter>) -> Option<Peripheral> {
     let mut tasks = JoinSet::new();
+
+    // TODO: There's a bug here... we start scanning on all adapters, but if a scan *fails* (as opposed to just not
+    // finding a device) then it will return - which will trigger `tasks.join_next` to return a None result, and we'll
+    // assume the whole device scan has failed.
 
     info!("Starting scan...");
     for adapter in adapter_list.iter() {
@@ -46,44 +55,69 @@ async fn find_device(adapter_list: Vec<Adapter>) -> Peripheral {
     }
     debug!("All adapter scan tasks spawned");
 
-    let p = tasks.join_next().await.unwrap().unwrap();
-    info!("Found device");
-    p
+    match tasks.join_next().await {
+        Some(Ok(Some(p))) => {
+            info!("Found device");
+            Some(p)
+        }
+        _ => {
+            warn!("Failed to find device");
+            None
+        }
+    }
 }
 
-async fn find_device_from_adapter(adapter: Adapter) -> Peripheral {
+async fn find_device_from_adapter(adapter: Adapter) -> Option<Peripheral> {
     let adapter_name = adapter
         .adapter_info()
         .await
         .unwrap_or("<Unknown>".to_string());
     debug!("Scanning on adapter {:?}", adapter_name);
 
-    adapter
-        .start_scan(ScanFilter::default())
-        .await
-        .expect("Can't scan BLE adapter for connected devices...");
+    if adapter.start_scan(ScanFilter::default()).await.is_err() {
+        warn!(
+            "Can't scan adapter \"{:?}\" for connected devices...",
+            adapter
+        );
+        return None;
+    }
 
     loop {
         // TODO: Is it necessary to sleep at the beginning here?
         // I can't remember if there was a stability issue from not sleeping.
         time::sleep(Duration::from_secs(2)).await;
-        let peripherals = adapter.peripherals().await.unwrap();
+        let Ok(peripherals) = adapter.peripherals().await else {
+            warn!(
+                "Couldn't get peripherals list from adapter \"{:?}\"",
+                adapter_name
+            );
+            return None;
+        };
 
-        // All peripheral devices in range.
+        // `peripherals` is all peripheral devices in range at this time.
         for peripheral in peripherals.iter() {
             if check_peripheral(peripheral).await {
                 debug!("Found acceptable device on adapter {:?}", adapter_name);
-                return peripheral.clone();
+                return Some(peripheral.clone());
             }
         }
     }
 }
 
 async fn check_peripheral(peripheral: &Peripheral) -> bool {
-    let properties = peripheral.properties().await.unwrap();
-    let is_connected = peripheral.is_connected().await.unwrap();
+    let Ok(Some(properties)) = peripheral.properties().await else {
+        warn!(
+            "Could not retrieve properties from BLE device \"{:?}\"",
+            peripheral
+        );
+        return false;
+    };
+
+    // If there's an error here, I think it's OK to assume the device isn't connected. We attempt to connect one
+    // more time, lower down.
+    let is_connected = peripheral.is_connected().await.unwrap_or(false);
+
     let local_name = properties
-        .unwrap()
         .local_name
         .unwrap_or(String::from("(peripheral name unknown)"));
     debug!(
@@ -101,7 +135,8 @@ async fn check_peripheral(peripheral: &Peripheral) -> bool {
                 return false;
             }
         }
-        let is_connected = peripheral.is_connected().await.unwrap();
+
+        let is_connected = peripheral.is_connected().await.unwrap_or(false);
 
         if is_connected {
             trace!("Connected, checking characteristics");
@@ -149,10 +184,6 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
         return false;
     };
 
-    // TODO: Logging
-    //info!("Checking characteristic {:?}", notify_characteristic);
-    // Subscribe to notifications from the characteristic with the selected
-    // UUID.
     let r = is_notify_characteristic(notify_characteristic)
         && is_write_characteristic(write_characteristic);
     if !r {
@@ -162,11 +193,13 @@ pub async fn has_required_characteristics(device: &Peripheral) -> bool {
 }
 
 fn is_notify_characteristic(characteristic: &Characteristic) -> bool {
+    trace!("Checking notify characteristic: {:?}", characteristic);
     characteristic.uuid == NOTIFY_CHARACTERISTIC_UUID
         && characteristic.properties.contains(CharPropFlags::NOTIFY)
 }
 
 fn is_write_characteristic(characteristic: &Characteristic) -> bool {
+    trace!("Checking write characteristic: {:?}", characteristic);
     characteristic.uuid == WRITE_CHARACTERISTIC_UUID
         && characteristic.properties.contains(CharPropFlags::WRITE)
 }
@@ -183,7 +216,7 @@ pub async fn subscribe_to_notifications(
     let notify_characteristic = characteristics
         .iter()
         .find(|c| c.uuid == NOTIFY_CHARACTERISTIC_UUID)
-        .unwrap();
+        .ok_or("Notify characteristic not found")?;
 
     // TODO: We should already have checked the characteristic, is it necessary to repeat it?
     trace!("Checking characteristic {:?}", notify_characteristic);
@@ -211,7 +244,7 @@ pub async fn get_write_characteristic(
     let write_characteristic = characteristics
         .iter()
         .find(|c| c.uuid == WRITE_CHARACTERISTIC_UUID)
-        .unwrap();
+        .ok_or("Write characteristic not found")?;
 
     if !is_write_characteristic(write_characteristic) {
         return Err("Bad characteristics".into());
