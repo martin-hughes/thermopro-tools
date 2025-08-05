@@ -1,9 +1,5 @@
-#[cfg(feature = "dummy_device")]
-use crate::controller::dummy_device_finder::get_device;
-
-#[cfg(not(feature = "dummy_device"))]
-use crate::controller::btleplug_device_finder::get_device;
 use crate::controller::command_request::CommandRequest;
+use crate::dev_finder::get_device;
 use crate::model::device::{TP25State, TemperatureMode};
 use crate::model::probe::ProbeIdx::*;
 use crate::model::probe::{AlarmState, AlarmThreshold, ProbeIdx};
