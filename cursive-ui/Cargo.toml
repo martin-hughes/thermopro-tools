@@ -11,7 +11,7 @@ cursive = "0.21"
 cursive_table_view = "0.15.0"
 device_controller = { workspace = true }
 log = { version = "0.4.27" }
-tokio = { version = "1.44.2", features = ["full", "test-util"] }
+tokio = { version = "1.47.0", features = ["full", "test-util"] }
 
 [[bin]]
 name = "cursive-ui"

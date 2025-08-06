@@ -10,7 +10,7 @@ use crate::peripheral::command::{
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
 use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, TemperatureData};
 use crate::peripheral::transfer::Transfer;
-use log::{debug, info};
+use log::{debug, info, trace, warn};
 use std::sync::Arc;
 use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -35,6 +35,7 @@ impl Controller {
         let saved_cmd_rqst_rx = Arc::new(Mutex::new(command_request_rx));
 
         loop {
+            trace!("Controller - start of loop");
             if state_update_tx
                 .send(get_device_state(&protected_device_state).await)
                 .await
@@ -78,17 +79,26 @@ impl Controller {
         transfer_tx: &Sender<Transfer>,
         command_request_rx: Arc<Mutex<Receiver<CommandRequest>>>,
     ) {
+        if send_startup_cmd(&peripheral_tx, transfer_tx).await.is_err() {
+            warn!("Unable to send startup command, connection will abort");
+            return;
+        };
+
         let protected_device_state = protected_device_state.clone();
         let protected_device_state_b = protected_device_state.clone();
         let transfer_tx = transfer_tx.clone();
         let transfer_tx_b = transfer_tx.clone();
         let state_update_tx = state_update_tx.clone();
 
+        // Receive notifications from the thermometer. Use them to update our model of the
+        // thermometer, and send updated state to the UI.
         let receiver_task = tokio::spawn(async move {
+            debug!("Starting receiver task");
             loop {
                 let Some(n) = peripheral_rx.get_notification().await else {
                     // If we stop receiving notifications then just exit.
                     // TODO: Update the screen to say disconnected, try to reconnect, etc.
+                    debug!("Device receiver task exiting - notification failure");
                     return;
                 };
                 let device_state = &mut protected_device_state.lock().await;
@@ -97,26 +107,22 @@ impl Controller {
                     .await
                     .is_err()
                 {
+                    debug!("Device receiver task exiting - UI state update failure");
                     return;
                 }
                 handle_notification(n, &state_update_tx, device_state).await;
             }
         });
 
-        //let mut command_request_rx = command_request_rx.
+        // Receive "command requests" from the UI, process them and send relevant commands to the
+        // thermometer.
         let ui_task = tokio::spawn(async move {
-            // TODO: The next line doesn't really sit well here, conceptually.
-            if send_startup_cmd(&peripheral_tx, &transfer_tx_b)
-                .await
-                .is_err()
-            {
-                return;
-            };
-
+            debug!("Starting UI command request task");
             let mut command_request_rx = command_request_rx.lock().await;
 
             loop {
                 let Some(r) = command_request_rx.recv().await else {
+                    debug!("UI command request task exiting (request receive failure)");
                     return;
                 };
                 if handle_command_request(
@@ -128,12 +134,14 @@ impl Controller {
                 .await
                 .is_err()
                 {
+                    debug!("UI command request task exiting (command send failure)");
                     return;
                 }
             }
         });
 
         select! { _ = receiver_task => {}, _ = ui_task => {}};
+        debug!("Connection failed - at least one task exited");
     }
 }
 async fn handle_notification(
