@@ -12,9 +12,9 @@ use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, T
 use crate::peripheral::transfer::Transfer;
 use log::{debug, info, trace, warn};
 use std::sync::Arc;
-use tokio::select;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
+use tokio::task::JoinSet;
 
 pub struct Controller {}
 
@@ -90,14 +90,17 @@ impl Controller {
         let transfer_tx_b = transfer_tx.clone();
         let state_update_tx = state_update_tx.clone();
 
+        let mut tasks = JoinSet::new();
+
         // Receive notifications from the thermometer. Use them to update our model of the
         // thermometer, and send updated state to the UI.
-        let receiver_task = tokio::spawn(async move {
+        tasks.spawn(async move {
             debug!("Starting receiver task");
             loop {
                 let Some(n) = peripheral_rx.get_notification().await else {
-                    // If we stop receiving notifications then just exit.
-                    // TODO: Update the screen to say disconnected, try to reconnect, etc.
+                    // If we stop receiving notifications then just exit. The outer loop in `run`
+                    // will attempt to reconnect, and will set appropriate state for the UI to
+                    // understand what is happening.
                     debug!("Device receiver task exiting - notification failure");
                     return;
                 };
@@ -116,7 +119,7 @@ impl Controller {
 
         // Receive "command requests" from the UI, process them and send relevant commands to the
         // thermometer.
-        let ui_task = tokio::spawn(async move {
+        tasks.spawn(async move {
             debug!("Starting UI command request task");
             let mut command_request_rx = command_request_rx.lock().await;
 
@@ -140,7 +143,9 @@ impl Controller {
             }
         });
 
-        select! { _ = receiver_task => {}, _ = ui_task => {}};
+        // Letting `tasks` fall out of scope will drop the other task. This will hopefully allow
+        // the device to reconnect properly.
+        tasks.join_next().await;
         debug!("Connection failed - at least one task exited");
     }
 }
