@@ -5,6 +5,7 @@ use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::AggregatedMessage;
 use device_controller::controller::command_request::CommandRequest;
 use device_controller::controller::default::Controller;
+use device_controller::dev_finder::DeviceFinder;
 use device_controller::model::device::TP25State;
 use device_controller::model::probe::{
     AlarmThreshold, ProbeIdx, RangeLimitThreshold, UpperLimitThreshold,
@@ -238,9 +239,15 @@ async fn main() -> std::io::Result<()> {
     let state = web::Data::new(AppState::new(state_watch_rx, cmd_tx));
 
     let mut all_tasks = JoinSet::new();
+    let finder = DeviceFinder {};
 
     // Controller task.
-    all_tasks.spawn(Controller::run(state_tx, transfer_tx, ui_request_rx));
+    all_tasks.spawn(Controller::run(
+        finder,
+        state_tx,
+        transfer_tx,
+        ui_request_rx,
+    ));
 
     // Server task.
     let s = HttpServer::new(move || {

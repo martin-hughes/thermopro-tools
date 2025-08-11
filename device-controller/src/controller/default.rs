@@ -1,5 +1,5 @@
 use crate::controller::command_request::CommandRequest;
-use crate::dev_finder::get_device;
+use crate::dev_finder::DeviceFinder;
 use crate::model::device::{TP25State, TemperatureMode};
 use crate::model::probe::ProbeIdx::*;
 use crate::model::probe::{AlarmState, AlarmThreshold, ProbeIdx};
@@ -22,6 +22,7 @@ type ProtectedDeviceState = Arc<Mutex<TP25State>>;
 
 impl Controller {
     pub async fn run(
+        finder: DeviceFinder,
         state_update_tx: Sender<TP25State>,
         transfer_tx: Sender<Transfer>,
         command_request_rx: Receiver<CommandRequest>,
@@ -45,7 +46,7 @@ impl Controller {
                 return;
             }
 
-            let Ok((peripheral_rx, peripheral_tx)) = get_device().await else {
+            let Ok((peripheral_rx, peripheral_tx)) = finder.get_device().await else {
                 // `get_device` only errors for unrecoverable errors such as no Bluetooth adapters.
                 // If it merely can't find a decice, it keeps waiting. Therefore an error return
                 // means there's no point continuing.
