@@ -1,7 +1,7 @@
 use crate::controller::command_request::CommandRequest;
-use crate::dev_finder::DeviceFinder;
+use crate::controller::connection_mgr::ProtectedDeviceState;
 use crate::model::device::{TP25State, TemperatureMode};
-use crate::model::probe::ProbeIdx::*;
+use crate::model::probe::ProbeIdx::{Probe1, Probe2, Probe3, Probe4};
 use crate::model::probe::{AlarmState, AlarmThreshold, ProbeIdx};
 use crate::peripheral::command::{
     build_alarm_ack_cmd, build_custom_cmd, build_report_profile_cmd, build_set_profile_cmd,
@@ -10,69 +10,23 @@ use crate::peripheral::command::{
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
 use crate::peripheral::notification::{Decoded, Notification, ProbeProfileData, TemperatureData};
 use crate::peripheral::transfer::Transfer;
-use log::{debug, info, trace, warn};
+use log::{debug, warn};
 use std::sync::Arc;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 use tokio::task::JoinSet;
 
-pub struct Controller {}
+/// Communicates with a TP25 and keeps a record of its state, promulgating updates as required.
+pub struct ConnectionHandler {}
 
-type ProtectedDeviceState = Arc<Mutex<TP25State>>;
-
-impl Controller {
-    pub async fn run(
-        finder: DeviceFinder,
-        state_update_tx: Sender<TP25State>,
-        transfer_tx: Sender<Transfer>,
-        command_request_rx: Receiver<CommandRequest>,
-    ) {
-        info!("Starting Controller");
-        let device_state = TP25State {
-            connected: false,
-            ..TP25State::default()
-        };
-        let protected_device_state = Arc::new(Mutex::new(device_state));
-        let saved_cmd_rqst_rx = Arc::new(Mutex::new(command_request_rx));
-
-        loop {
-            trace!("Controller - start of loop");
-            if state_update_tx
-                .send(get_device_state(&protected_device_state).await)
-                .await
-                .is_err()
-            {
-                debug!("Controller stopping as unable to send state update");
-                return;
-            }
-
-            let Ok((peripheral_rx, peripheral_tx)) = finder.get_device().await else {
-                // `get_device` only errors for unrecoverable errors such as no Bluetooth adapters.
-                // If it merely can't find a decice, it keeps waiting. Therefore an error return
-                // means there's no point continuing.
-                debug!("Device search failed, so controller exiting");
-                return;
-            };
-            {
-                protected_device_state.lock().await.connected = true;
-            }
-
-            Self::handle_one_connection(
-                peripheral_rx,
-                peripheral_tx,
-                &protected_device_state,
-                &state_update_tx,
-                &transfer_tx,
-                saved_cmd_rqst_rx.clone(),
-            )
-            .await;
-            {
-                protected_device_state.lock().await.connected = false;
-            }
-        }
-    }
-
-    async fn handle_one_connection(
+impl ConnectionHandler {
+    /// Control a provided connection to a TP25 (given as `peripheral_rx` and `peripheral_tx`). This means sending it
+    /// commands and listening for notifications. The combination of these allows an internal record of the device
+    /// state to be updated and sent to any listeners.
+    ///
+    /// This function will exit either due to an error, or when the connection to the device is dropped.
+    pub async fn handle_one_connection(
+        &self,
         mut peripheral_rx: impl TP25Receiver + 'static,
         peripheral_tx: impl TP25Writer + 'static + Sync,
         protected_device_state: &ProtectedDeviceState,
@@ -150,6 +104,7 @@ impl Controller {
         debug!("Connection failed - at least one task exited");
     }
 }
+
 async fn handle_notification(
     notification: Notification,
     ui_cmd_tx: &Sender<TP25State>,

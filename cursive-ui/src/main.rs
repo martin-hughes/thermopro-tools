@@ -2,7 +2,8 @@ use crate::model::transfer_log::TransferLog;
 use crate::ui::main::run_ui;
 use crate::ui::ui_command::{UiCommand, UpdateStateDetails};
 use device_controller::controller::command_request::CommandRequest;
-use device_controller::controller::default::Controller;
+use device_controller::controller::connection_handler::ConnectionHandler;
+use device_controller::controller::connection_mgr::ConnectionManager;
 use device_controller::dev_finder::DeviceFinder;
 use std::sync::mpsc::{channel as std_channel, Sender};
 use tokio::select;
@@ -42,7 +43,13 @@ async fn tokio_main_loop(ui_cmd_tx: Sender<UiCommand>, ui_request_rx: Receiver<C
     let (transfer_tx, mut transfer_rx) = tokio_channel(10);
     let finder = DeviceFinder {};
 
-    let task_a = Controller::run(finder, state_tx, transfer_tx, ui_request_rx);
+    let task_a = ConnectionManager::run(
+        finder,
+        ConnectionHandler {},
+        state_tx,
+        transfer_tx,
+        ui_request_rx,
+    );
 
     let ui_cmd_tx_2 = ui_cmd_tx.clone();
     let ui_cmd_tx_3 = ui_cmd_tx.clone();

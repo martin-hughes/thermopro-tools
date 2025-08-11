@@ -4,7 +4,8 @@ use crate::state_to_json::state_to_json;
 use actix_web::{web, App, HttpRequest, HttpResponse, HttpServer, Responder};
 use actix_ws::AggregatedMessage;
 use device_controller::controller::command_request::CommandRequest;
-use device_controller::controller::default::Controller;
+use device_controller::controller::connection_handler::ConnectionHandler;
+use device_controller::controller::connection_mgr::ConnectionManager;
 use device_controller::dev_finder::DeviceFinder;
 use device_controller::model::device::TP25State;
 use device_controller::model::probe::{
@@ -242,8 +243,9 @@ async fn main() -> std::io::Result<()> {
     let finder = DeviceFinder {};
 
     // Controller task.
-    all_tasks.spawn(Controller::run(
+    all_tasks.spawn(ConnectionManager::run(
         finder,
+        ConnectionHandler {},
         state_tx,
         transfer_tx,
         ui_request_rx,
