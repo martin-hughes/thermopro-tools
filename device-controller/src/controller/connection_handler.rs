@@ -247,6 +247,7 @@ async fn send_cmd(
     transfer_tx
         .send(Transfer::Command(command.clone()))
         .await
+        // TODO: Remove an unwrap here
         .unwrap();
     device.send_cmd(command).await
 }
