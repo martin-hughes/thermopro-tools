@@ -72,14 +72,16 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
                     .min_height(20),
             )
             .full_width()
-            .full_height()
-            .with_name("Hi"),
+            .full_height(),
     );
 
     siv.add_global_callback('q', |s| s.quit());
     siv.add_global_callback(Key::Esc, |s| s.select_menubar());
     siv.add_global_callback('~', Cursive::toggle_debug_console);
 
+    // The cursive documentation isn't particularly clear on this, but `Event::WindowResize` has to be handled as a
+    // "pre-event". I think this means it would be swallowed somewhere "in the view", whereas key events are not (and
+    // so they can be handled by `add_global_callback`)
     siv.set_on_pre_event(Event::WindowResize, |s| {
         static IS_SHOWN: Mutex<bool> = Mutex::new(false);
         let size = s.screen_size();

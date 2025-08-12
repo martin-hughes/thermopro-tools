@@ -1,10 +1,9 @@
+use crate::ui::views::ProbeSelectView;
 use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView, ListView, SelectView};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
-use device_controller::model::probe::{
-    AlarmThreshold, ProbeIdx, RangeLimitThreshold, UpperLimitThreshold,
-};
+use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 
@@ -32,7 +31,7 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
     }));
     let ts_store = type_state.clone();
 
-    let probe_edit = EditView::new().with_name("probe_number");
+    let probe_select = ProbeSelectView::new().with_name("probe_index");
     let type_edit = // TODO: Make it so that choosing an option shows/hides the relevant entry rows.
         SelectView::new()
             .popup()
@@ -52,14 +51,19 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
             .content(
                 ListView::new()
                     // TODO: Could make this a select box...
-                    .child("Probe", probe_edit)
+                    .child("Probe", probe_select)
                     .child("Type", type_edit)
                     .child("Upper limit", upper_bound_edit)
                     .child("Lower limit", lower_bound_edit),
             )
+            .button("Cancel", |c2| {
+                c2.pop_layer();
+            })
             .button("OK", move |c2| {
-                let num_str = c2
-                    .call_on_name("probe_number", |view: &mut EditView| view.get_content())
+                let probe_idx = c2
+                    .call_on_name("probe_index", |view: &mut ProbeSelectView| {
+                        view.get_selected_probe()
+                    })
                     .unwrap();
                 let alarm_type = type_state.lock().unwrap().item;
                 let upper_str = c2
@@ -69,17 +73,6 @@ pub fn set_profile_cb(c: &mut Cursive, tx: &Sender<CommandRequest>) {
                     .call_on_name("lower_limit", |view: &mut EditView| view.get_content())
                     .unwrap();
                 c2.pop_layer();
-
-                let number = num_str.parse::<u8>();
-                let Ok(num) = number else {
-                    c2.add_layer(Dialog::info("Probe number invalid!"));
-                    return;
-                };
-
-                let Ok(probe_idx) = ProbeIdx::try_from_one_based(num) else {
-                    c2.add_layer(Dialog::info("Probe number invalid!"));
-                    return;
-                };
 
                 let upper_num_r = upper_str.parse::<u16>();
                 let lower_num_r = lower_str.parse::<u16>();

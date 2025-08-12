@@ -52,14 +52,6 @@ impl ProbeView {
         styled.append(at);
 
         styled
-
-        /*let mut styled = StyledString::plain("Isn't ");
-        styled.append(StyledString::styled("that ", Color::Dark(BaseColor::Red)));
-        styled.append(StyledString::styled(
-            "cool?",
-            Style::from(Color::Light(BaseColor::Blue)).combine(Effect::Bold),
-        ));
-        styled*/
     }
 
     pub fn update_probe(&mut self, p: &Probe) {
