@@ -3,8 +3,9 @@ use cursive::traits::Nameable;
 use cursive::views::{Dialog, EditView, ListView, SelectView};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
+use device_controller::model::device_temperature::InRangeDeviceTemperature;
 use device_controller::model::probe::{AlarmThreshold, RangeLimitThreshold, UpperLimitThreshold};
-use std::num::ParseIntError;
+use std::num::ParseFloatError;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc::Sender;
 
@@ -104,11 +105,11 @@ fn update_temperature_children(needed: TypeMenuIndex, siv: &mut Cursive) {
 
         match needed {
             TypeMenuIndex::UpperOnly => {
-                view.add_child("Upper limit", upper_bound_edit);
+                view.add_child("Upper limit (C)", upper_bound_edit);
             }
             TypeMenuIndex::Range => {
-                view.add_child("Upper limit", upper_bound_edit);
-                view.add_child("Lower limit", lower_bound_edit);
+                view.add_child("Upper limit (C)", upper_bound_edit);
+                view.add_child("Lower limit (C)", lower_bound_edit);
             }
             _ => {}
         };
@@ -133,8 +134,17 @@ fn build_alarm_threshold(
     }
 }
 
-fn get_temp_from_field(siv: &mut Cursive, name: &str) -> Result<u16, ParseIntError> {
-    siv.call_on_name(name, |view: &mut EditView| view.get_content())
+fn get_temp_from_field(
+    siv: &mut Cursive,
+    name: &str,
+) -> Result<InRangeDeviceTemperature, ParseFloatError> {
+    let t = siv
+        .call_on_name(name, |view: &mut EditView| view.get_content())
         .unwrap()
-        .parse::<u16>()
+        .parse::<f32>()?;
+
+    Ok(InRangeDeviceTemperature::new(
+        t as u16,
+        ((t * 10.0) % 10.0) as u8,
+    ))
 }

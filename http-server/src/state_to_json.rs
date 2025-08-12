@@ -1,4 +1,5 @@
 use device_controller::model::device::{TP25State, TemperatureMode};
+use device_controller::model::device_temperature::{DeviceTemperature, InRangeDeviceTemperature};
 use device_controller::model::probe::{AlarmState, AlarmThreshold, Probe};
 use serde_json::{json, Value};
 
@@ -32,15 +33,15 @@ fn alarm_state_to_string(alarm: AlarmState) -> &'static str {
     }
 }
 
-fn temp_option_to_string(temp: Option<u16>) -> String {
+fn temp_option_to_string(temp: DeviceTemperature) -> String {
     match temp {
-        None => "unknown".to_string(),
-        Some(t) => temp_to_string(t),
+        DeviceTemperature::OutOfRange => "unknown".to_string(),
+        DeviceTemperature::InRange(t) => temp_to_string(t),
     }
 }
 
-fn temp_to_string(temp: u16) -> String {
-    format!("{:.1}", temp as f32 / 10.0)
+fn temp_to_string(temp: InRangeDeviceTemperature) -> String {
+    format!("{:.1}", f32::from(temp))
 }
 
 fn alarm_threshold_to_json(threshold: Option<AlarmThreshold>) -> Value {

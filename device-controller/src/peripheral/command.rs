@@ -87,15 +87,15 @@ pub fn build_set_profile_cmd(probe_idx: ProbeIdx, threshold: AlarmThreshold) -> 
             raw.push(0xff);
         }
         AlarmThreshold::UpperLimit(ult) => {
-            let u = bcdish_to_array(ult.max);
+            let u: [u8; 2] = ult.max.into();
             raw.push(u[0]);
             raw.push(u[1]);
             raw.push(0xff);
             raw.push(0xff);
         }
         AlarmThreshold::RangeLimit(rlt) => {
-            let min = bcdish_to_array(rlt.min);
-            let max = bcdish_to_array(rlt.max);
+            let min: [u8; 2] = rlt.min.into();
+            let max: [u8; 2] = rlt.max.into();
             raw.push(max[0]);
             raw.push(max[1]);
             raw.push(min[0]);
@@ -109,24 +109,5 @@ pub fn build_set_profile_cmd(probe_idx: ProbeIdx, threshold: AlarmThreshold) -> 
     Command {
         raw: raw.into(),
         decoded: Decoded::SetProbeProfile(probe_idx, threshold),
-    }
-}
-
-pub fn bcdish_to_array(bcdish: u16) -> [u8; 2] {
-    [
-        ((((bcdish / 1000) % 10) << 4) + ((bcdish / 100) % 10)) as u8,
-        ((((bcdish / 10) % 10) << 4) + (bcdish % 10)) as u8,
-    ]
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn basic_test() {
-        let r = bcdish_to_array(1234);
-        assert_eq!(r[0], 0x12);
-        assert_eq!(r[1], 0x34);
     }
 }

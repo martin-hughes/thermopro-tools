@@ -3,6 +3,7 @@ use crate::ui::status_view::update_status_view;
 use crate::ui::transfer_log::update_transfer_log;
 use crate::ui::ui_command::{UiCommand, UpdateStateDetails};
 use cursive::{CbSink, Cursive};
+use device_controller::model::device::TemperatureMode;
 use std::sync::mpsc;
 
 pub type CommandReceiver = mpsc::Receiver<UiCommand>;
@@ -26,12 +27,17 @@ pub fn receiver_thread(receiver: CommandReceiver, cb_sink: CbSink) {
 }
 
 fn update_state(c: &mut Cursive, state: UpdateStateDetails) {
+    let temp_mode = state
+        .device_state
+        .temperature_mode
+        .unwrap_or(TemperatureMode::Celsius);
+
     state
         .device_state
         .probes
         .iter()
         .enumerate()
-        .for_each(|(i, probe)| update_probe(c, i, probe));
+        .for_each(|(i, probe)| update_probe(c, i, probe, &temp_mode));
 
     update_status_view(c, &state.device_state);
 }

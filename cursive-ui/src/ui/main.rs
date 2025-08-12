@@ -9,6 +9,7 @@ use cursive::traits::*;
 use cursive::views::{Dialog, DummyView, LinearLayout, Panel};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
+use device_controller::model::device::TemperatureMode;
 use device_controller::model::probe::Probe;
 use log::LevelFilter::Warn;
 use log::{info, trace};
@@ -31,9 +32,9 @@ fn probe_name(index: usize) -> String {
     format!("probe_{}", index)
 }
 
-pub fn update_probe(c: &mut Cursive, index: usize, probe: &Probe) {
+pub fn update_probe(c: &mut Cursive, index: usize, probe: &Probe, temp_mode: &TemperatureMode) {
     c.call_on_name(probe_name(index).as_str(), |view: &mut ProbeView| {
-        view.update_probe(probe)
+        view.update_probe(probe, temp_mode)
     });
 }
 

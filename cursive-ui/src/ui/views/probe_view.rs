@@ -1,6 +1,9 @@
+use crate::model::temperatures::Temperature;
 use cursive::utils::markup::StyledString;
 use cursive::view::ViewWrapper;
 use cursive::views::TextView;
+use device_controller::model::device::TemperatureMode;
+use device_controller::model::device_temperature::DeviceTemperature::{InRange, OutOfRange};
 use device_controller::model::probe::{AlarmState, AlarmThreshold, Probe};
 
 pub struct ProbeView {
@@ -11,15 +14,15 @@ pub struct ProbeView {
 impl ProbeView {
     pub fn new(probe: &Probe) -> Self {
         Self {
-            inner: TextView::new(Self::probe_to_content(probe)),
+            inner: TextView::new(Self::probe_to_content(probe, &TemperatureMode::Celsius)),
             probe: *probe,
         }
     }
 
-    fn probe_to_content(p: &Probe) -> StyledString {
+    fn probe_to_content(p: &Probe, temp_mode: &TemperatureMode) -> StyledString {
         let t = match p.temperature {
-            None => StyledString::plain("--"),
-            Some(t) => StyledString::plain(t.to_string()),
+            OutOfRange => StyledString::plain("--"),
+            InRange(t) => StyledString::plain(Temperature(t, *temp_mode).to_string()),
         };
 
         let a = match p.alarm {
@@ -33,14 +36,14 @@ impl ProbeView {
             Some(AlarmThreshold::NoneSet) => StyledString::plain("No alarm set"),
             Some(AlarmThreshold::UpperLimit(ult)) => {
                 let mut l = StyledString::plain("Upper limit alarm ");
-                l.append(ult.max.to_string());
+                l.append(Temperature(ult.max, *temp_mode).to_string());
                 l
             }
             Some(AlarmThreshold::RangeLimit(rlt)) => {
                 let mut l = StyledString::plain("Range limit alarm ");
-                l.append(rlt.min.to_string());
+                l.append(Temperature(rlt.min, *temp_mode).to_string());
                 l.append(" -> ");
-                l.append(rlt.max.to_string());
+                l.append(Temperature(rlt.max, *temp_mode).to_string());
                 l
             }
         };
@@ -54,9 +57,9 @@ impl ProbeView {
         styled
     }
 
-    pub fn update_probe(&mut self, p: &Probe) {
+    pub fn update_probe(&mut self, p: &Probe, temp_mode: &TemperatureMode) {
         self.probe = *p;
-        self.inner.set_content(Self::probe_to_content(p));
+        self.inner.set_content(Self::probe_to_content(p, temp_mode));
     }
 }
 

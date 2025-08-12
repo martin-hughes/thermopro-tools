@@ -1,4 +1,6 @@
 use crate::model::device::TemperatureMode;
+use crate::model::device_temperature::DeviceTemperature::InRange;
+use crate::model::device_temperature::InRangeDeviceTemperature;
 use crate::model::probe::AlarmThreshold;
 use crate::peripheral::command::{Command, Decoded};
 use crate::peripheral::interface::{TP25Receiver, TP25Writer};
@@ -6,7 +8,7 @@ use crate::peripheral::notification::Decoded::{
     ReportProbeProfile, SetProbeProfile, SetTempMode, Startup, Temperatures,
 };
 use crate::peripheral::notification::{
-    Notification, ProbeProfileData, RawTemperature, TemperatureData,
+    Notification, ProbeProfileData, ProbeTemperature, TemperatureData,
 };
 use bytes::Bytes;
 use std::collections::VecDeque;
@@ -99,8 +101,8 @@ fn get_queued_notification(internal: &Arc<Mutex<InternalState>>) -> Option<Notif
 
 fn build_temp_notification(t: u16, mode: TemperatureMode) -> Notification {
     let temps = (0..4)
-        .map(|i| RawTemperature {
-            temp: Some(t + i),
+        .map(|i| ProbeTemperature {
+            temp: InRange(InRangeDeviceTemperature::new(t + i, i as u8 * 2 + 1)),
             alarm: false,
         })
         .collect::<Vec<_>>();

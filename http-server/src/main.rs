@@ -89,12 +89,10 @@ async fn set_alarm(data: web::Data<AppState>, json: web::Json<ProfileData>) -> i
     let alarm_threshold = match (alarm_low, alarm_high) {
         (None, None) => AlarmThreshold::NoneSet,
         (Some(_), None) => return HttpResponse::BadRequest(),
-        (None, Some(h)) => AlarmThreshold::UpperLimit(UpperLimitThreshold {
-            max: (h * 10_f32) as u16,
-        }),
+        (None, Some(h)) => AlarmThreshold::UpperLimit(UpperLimitThreshold { max: h.into() }),
         (Some(l), Some(h)) => AlarmThreshold::RangeLimit(RangeLimitThreshold {
-            min: (l * 10_f32) as u16,
-            max: (h * 10_f32) as u16,
+            min: l.into(),
+            max: h.into(),
         }),
     };
 

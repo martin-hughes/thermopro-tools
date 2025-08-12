@@ -1,6 +1,8 @@
+use crate::model::device_temperature::{DeviceTemperature, InRangeDeviceTemperature};
+
 #[derive(Clone, Copy, Debug)]
 pub struct UpperLimitThreshold {
-    pub max: u16,
+    pub max: InRangeDeviceTemperature,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -13,8 +15,8 @@ pub enum AlarmState {
 
 #[derive(Clone, Copy, Debug)]
 pub struct RangeLimitThreshold {
-    pub min: u16,
-    pub max: u16,
+    pub min: InRangeDeviceTemperature,
+    pub max: InRangeDeviceTemperature,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -26,7 +28,7 @@ pub enum AlarmThreshold {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Probe {
-    pub temperature: Option<u16>,
+    pub temperature: DeviceTemperature,
     pub alarm: AlarmState,
     pub alarm_threshold: Option<AlarmThreshold>,
 }
