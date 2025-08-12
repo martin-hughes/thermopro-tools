@@ -4,14 +4,15 @@ use crate::ui::status_view::make_status_view;
 use crate::ui::transfer_log::make_transfer_log;
 use crate::ui::views::ProbeView;
 use cursive::align::HAlign;
-use cursive::event::Key;
+use cursive::event::{Event, Key};
 use cursive::traits::*;
 use cursive::views::{Dialog, DummyView, LinearLayout, Panel};
 use cursive::Cursive;
 use device_controller::controller::command_request::CommandRequest;
 use device_controller::model::probe::Probe;
-use log::info;
 use log::LevelFilter::Warn;
+use log::{info, trace};
+use std::sync::Mutex;
 use std::thread;
 use tokio::sync::mpsc::Sender;
 
@@ -59,7 +60,9 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
                     .child(probe(0))
                     .child(probe(1))
                     .child(probe(2))
-                    .child(probe(3)),
+                    .child(probe(3))
+                    .min_height(5)
+                    .min_width(15),
             )
             .child(DummyView)
             .child(
@@ -76,6 +79,25 @@ pub fn run_ui(ui_command_receiver: CommandReceiver, request_tx: Sender<CommandRe
     siv.add_global_callback('q', |s| s.quit());
     siv.add_global_callback(Key::Esc, |s| s.select_menubar());
     siv.add_global_callback('~', Cursive::toggle_debug_console);
+
+    siv.set_on_pre_event(Event::WindowResize, |s| {
+        static IS_SHOWN: Mutex<bool> = Mutex::new(false);
+        let size = s.screen_size();
+        //s.quit();
+        trace!("Size changed to: {:?}", size);
+        let mut shown = IS_SHOWN.lock().unwrap();
+        if size.y < 22 || size.x < 60 {
+            if !*shown {
+                *shown = true;
+                s.add_layer(Dialog::text(
+                    "The window size may be too small to show all content - make it at least 60x22",
+                ).button("OK", |s2| {s2.pop_layer(); *IS_SHOWN.lock().unwrap() = false;}));
+            }
+        } else if *shown {
+            *shown = false;
+            s.pop_layer();
+        }
+    });
 
     let cb_sink = siv.cb_sink().clone();
     thread::spawn(move || receiver_thread(ui_command_receiver, cb_sink));
